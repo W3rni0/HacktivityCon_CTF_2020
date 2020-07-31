@@ -3,7 +3,7 @@
 <div align='center'>
   <img width=500 src='assets//images//logo.gif'>
 </div>
-\
+
 This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding as many challenges as I can during the next few days, as of now it contains the only challenge I managed to write about during the CTF.
 
 # Table of Content
