@@ -4,14 +4,14 @@
   <img width=500 src='assets//images//logo.gif'>
 </div>
 
-This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding as many challenges as I can during the next few days, as of now it contains the only challenge I managed to write about during the CTF.
+This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding as many challenges as I can during the next few days starting with the web challenges.
 
 
 # Table of Content
 * [Web](#web)
   - [Ladybug](#ladybug)
   - [Bite](#bite)
-  - [G.I Joe](#g.i-joe)
+  - [GI Joe](#gi-joe)
 
 # Web
 
@@ -116,7 +116,7 @@ http://jh2i.com:50008
 ![](assets//images//gi_joe_1.png)
 
 By the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specification for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used to generate webpages dynamically, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.\
-Looking around in the web site I didn't find any other interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version which allows us to execute arbitrary code on the server, this vulnrability is often refered to by CVE-2012-2311.\
+Looking around in the web site I didn't find any other interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version which allows us to execute arbitrary code on the server, this vulnrability is often refered to by CVE-2012-1823 (or by CVE-2012-2311 because of later discoveries related to this vulnrability).\
 In more details when providing vulnrable website with a value with no parameter (lacks the `=` symbol) the value is interpreted as options for the php-cgi program which handles communication with the web server related to PHP, the options avaliable are listed in the man page in the resources, so for example by using the -s flag we can output the source code for a php file and so by adding `?-s` to the url for a php file located on a vulnrable server we can view the source code of the file, let's try it on the index page (which is a php file) by navigating to `/index.php?-s` we get the following:
 
 ![](assets//images//gi_joe_2.png)
@@ -132,6 +132,7 @@ and by executing this command we get the flag:
 
 **Resources:**
 * Common Gateway Interface: https://en.wikipedia.org/wiki/Common_Gateway_Interface
-* CVE-2012-2311: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-2311
-* a detailed explanation on CVE-2012-2311: https://pentesterlab.com/exercises/cve-2012-1823/course
+* CVE-2012-1823: https://cve.mitre.org/cgi-bin/cvename.cgi?name=cve-2012-1823
+* CVE-2012-2311: https://cve.mitre.org/cgi-bin/cvename.cgi?name=cve-2012-2311
+* a detailed explanation on CVE-2012-1823: https://pentesterlab.com/exercises/cve-2012-1823/course
 * man page for php-cgi: https://www.systutorials.com/docs/linux/man/1-php-cgi/
