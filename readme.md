@@ -8,6 +8,10 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
 
 
 # Table of Content
+* [Web](#web)
+  - [Ladybug](#ladybug)
+  - [Bite](#bite)
+  - [G.I Joe](#g.i-joe)
 
 # Web
 
@@ -19,7 +23,7 @@ http://jh2i.com:50018
 
 **`flag{weurkzerg_the_worst_kind_of_debug}`**
 
-**Solution:** With the challenge we are given a url to a webserver:
+**Solution:** With the challenge we are given a url to a website:
 
 ![](assets//images//ladybug_1.png)
 
@@ -60,7 +64,7 @@ http://jh2i.com:50010
 
 **`flag{lfi_just_needed_a_null_byte}`**
 
-**Solution:** With the challenge we get a url for a webserver:
+**Solution:** With the challenge we get a url for a website:
 
 ![](assets//images//bite_1.png)
 
@@ -97,3 +101,37 @@ At this point I tried a lot of possible locations until I discovered that the fl
 * Payload all the things - File Inclusion: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/File%20Inclusion
 * Null byte: https://en.wikipedia.org/wiki/Null_character
 * Null byte issues in PHP: https://www.php.net/manual/en/security.filesystem.nullbytes.php
+
+## GI Joe
+The real American hero!
+
+Connect here:\
+http://jh2i.com:50008
+
+**Post-CTF Writeup**\
+**`flag{old_but_gold_attacks_with_cgi_joe}`**
+
+**Solution:** With the challenge we get a url to a website about G.I joe's movies called See GI Joe:
+
+![](assets//images//gi_joe_1.png)
+
+By the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specification for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used to generate webpages dynamically, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.\
+Looking around in the web site I didn't find any other interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version which allows us to execute arbitrary code on the server, this vulnrability is often refered to by CVE-2012-2311.\
+In more details when providing vulnrable website with a value with no parameter (lacks the `=` symbol) the value is interpreted as options for the php-cgi program which handles communication with the web server related to PHP, the options avaliable are listed in the man page in the resources, so for example by using the -s flag we can output the source code for a php file and so by adding `?-s` to the url for a php file located on a vulnrable server we can view the source code of the file, let's try it on the index page (which is a php file) by navigating to `/index.php?-s` we get the following:
+
+![](assets//images//gi_joe_2.png)
+
+It worked! and we now know that the flag is a file called flag.txt in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the -d option, this option allows us to change and define INI entries, or in other words change the configuration files of PHP, we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to allow the usage of `php://input`, so by navigating to `?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a php code to execute commands on the system `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.\
+let's try doing that to view the flag, we can use cURL with -i option to include the HTTP headers and --data-binary option to add the php code, in the php code we'll use `cat /flag.txt` to output the content of the file, the command is:
+
+`curl -i --data-binary "<?php system(\"cat /flag.txt \") ?>" "http://jh2i.com:50008/?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input"`
+
+and by executing this command we get the flag:
+
+![](assets//images//gi_joe_3.png)
+
+**Resources:**
+* Common Gateway Interface: https://en.wikipedia.org/wiki/Common_Gateway_Interface
+* CVE-2012-2311: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-2311
+* a detailed explanation on CVE-2012-2311: https://pentesterlab.com/exercises/cve-2012-1823/course
+* man page for php-cgi: https://www.systutorials.com/docs/linux/man/1-php-cgi/
