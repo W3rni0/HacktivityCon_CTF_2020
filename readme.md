@@ -72,23 +72,23 @@ we possibly have a local file inclusion vulnerability (LFI), as I explained in m
 
 >  php allows the inclusion of files from the server as parameters in order to extend the functionality of the script or to use code from other files, but if the script is not sanitizing the input as needed (filtering out sensitive files) an attacker can include any arbitrary file on the web server or at least use what's not filtered to his advantage
 
-let's first try including the php file itself, this will create some kind of a loop where the file included again and again and will probably causes the browser to crash...but it's a good indicator that we have an LFI vulnerability, navigating to `/index.php?page=index.php` gives us:
+let's first try including the php file itself, this will create some kind of a loop where the file included again and again and will probably cause the browser to crash...but it's a good indicator that we have an LFI vulnerability, navigating to `/index.php?page=index.php` gives us:
 
 ![](assets//images//bite_2.png)
 
-index.php.php? it's seems that the php file includes the resource with a name  matching the parameter given appended to .php, lets try `/index.php?page=index` :
+index.php.php? it's seems that the php file includes a resource with a name  matching the parameter given appended to .php, lets try `/index.php?page=index` :
 
 ![](assets//images//bite_3.png)
 
-It worked! so we know that we have an LFI vulnerability where the parameter given is appended to a php extension, this is a common defense machanism against arbitrary file inclusion as we are now limited only to php file, but there are ways to go around this.\
-In older versions of php by adding a null byte at the end of the parameter we can terminate the parameter string, a null byte or null character is a character with the code `\x00`, this character signifies the end of a string in C and as such strings in C are often called null-terminated strings, because PHP uses C functions for filesystem related operations adding a null byte in the parameter will cause the C function responsible with including the resource to only consider the string before the null byte.
+It worked! so we know that we have an LFI vulnerability where the parameter given is appended to a php extension, appending a string to the parameter's value is a common defense mechanism against arbitrary file inclusion as we are now limited only to a small scope of files, hopefully only files that are safe to display, but there are ways to go around this.\
+In older versions of php by adding a null byte at the end of the parameter we can terminate the parameter's string, a null byte or null character is a character with the code `\x00`, this character signifies the end of a string in C and as such strings in C are often called null-terminated strings, because PHP uses C functions for filesystem related operations adding a null byte in the parameter will cause the C function to only consider the string before the null byte.
 
-with that in mind let's check if we can use a null byte to display an arbitrary, to mix things let's try to include `/etc/passwd`, this file exists in all linux servers and is commonly accesible by all the users in the system (web applications running are considered as users in linux) and as such it's common to display the content of this file in order to prove access to a server, we can represent a null byte in url encoding using `%00`, navigating to `/index.php?page=/etc/passwd%00` gives us:
+with that in mind let's check if we can use a null byte to display an arbitrary file, to mix things we'll try to include `/etc/passwd`, this file exists in all linux servers and is commonly accessible by all the users in the system (web applications running are considered as users in linux) as such it's common to display the content of this file in order to prove access to a server (as proof of concept), we can represent a null byte in url encoding using `%00`, navigating to `/index.php?page=/etc/passwd%00` gives us:
 
 ![](assets//images//bite_4.png)
 
-It worked...but where is the flag located...\
-At this point I tried a lot of possible locations until I discovered that the flag is in the root directory in a file called `file.txt` by navigating to `/index.php?page=/flag.txt%00` we get the flag:
+We can use null bytes!...but where is the flag located?\
+At this point I tried a lot of possible locations until I discovered that the flag is located in the root directory in a file called `file.txt` by navigating to `/index.php?page=/flag.txt%00` we get the flag:
 
 ![](assets//images//bite_5.png)
 
