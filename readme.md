@@ -14,6 +14,7 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
   - [GI Joe](#gi-joe)
   - [Waffle Land](#waffle-land)
   - [Lightweight Contact Book](#lightweight-contact-book)
+  - [Template Shack](#template-shack)
 
 # Web
 
