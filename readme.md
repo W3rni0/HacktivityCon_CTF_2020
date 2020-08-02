@@ -6,6 +6,7 @@
 
 This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding as many challenges as I can during the next few days starting with the web challenges.
 
+***
 
 # Table of Content
 * [Cryptography](#cryptography)
@@ -20,6 +21,8 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
   - [Waffle Land](#waffle-land)
   - [Lightweight Contact Book](#lightweight-contact-book)
   - [Template Shack](#template-shack)
+
+***
 
 # Cryptography
 
@@ -194,6 +197,8 @@ And by running this more efficient code we get the flag in no time:
 * Mersenne Prime: https://en.wikipedia.org/wiki/Mersenne_prime
 * The list I used: https://www.math.utah.edu/~pa/math/mersenne.html#:~:text=p%20%3D%202%2C%203%2C%205,%2C%2024036583%2C%2025964951%2C%2030402457.
 
+***
+
 # Binary Exploitation
 
 **Note:** For all the binary exploitation challenges I'll be working with [IDA free](https://www.hex-rays.com/products/ida/support/download_freeware/) and [pwntools](http://docs.pwntools.com/en/stable/)
@@ -259,7 +264,7 @@ and in action:
 
 ![](assets//images//pancakes_6.png)
 
-
+***
 
 # Web
 
@@ -399,27 +404,27 @@ There seems to be only two functionalities to this webpage, searching using the 
 
 ![](assets//images//waffle_land_2.png)
 
-This gives us information about two things, first we know now that the search option uses SQL to filter data, SQL is a language designed for managing and querying databases (with SQL it is common to think of the as tables with rows of data and columns of attributes), in this case a SQL query is used to select all the products with the name attribute is similar to the input given, second we know that the web server uses SQLite3 management system, this has some influence on the version of SQL used and on the operations we can use or exploit.\
-A common attack against SQL systems is using SQL injection or SQLi, computers can't differentiate between data and commands and as such it's sometime possible to inject commands where data is requested, for example we can search for `' limit 1 ---` and this will cause the SQL management system vulnerable to SQLi to execute the following query:
+This gives us information about two things, first we know now that the search option uses SQL to filter data, SQL is a language designed for managing and querying databases (with SQL it is common to think of databases as tables with rows of data and columns of attributes), in this case a SQL query is used to select all the products with the having a value in the name attribute similar to the input given, second we know that the web server uses SQLite3 management system, this has some influence on the version of SQL used and on the operations we can use or exploit.\
+A common attack against SQL systems is using SQL injection or SQLi, computers can't differentiate between data and commands and as such it's sometime possible to inject commands where data is requested, for example we can search for `' limit 1 ---` and this will cause the SQL management system if it's vulnerable to SQLi to execute the following query:
 
 `select * from product where name like '' limit 1`
 
-this query returns the first row of data in the product table, this will be executed because we closed the quotations and added `-- -` which signifies that the rest of the string is a comment.
-To prevent this attack there are systems in place to filter (sanitize) the input given, one of those is a Web Application Firewall or WAF, this type of system monitors the HTTP traffic of a web server and prevents attacks such as SQLi by blocking suspicious traffic.\
+this query returns the first row of data in the product table, this will be executed because we closed the quotations and added `-- -` at the end which signifies that the rest of the string is a comment.
+To prevent this attack there are systems in place to filter (sanitize) the input given, one of those is a Web Application Firewall or WAF, this type of systems monitor the HTTP traffic of a web server and prevent attacks such as SQLi by blocking suspicious traffic.\
 Let's first check if we have SQLi to begin with, using the search parameter in the example above gives us the following:
 
 ![](assets//images//waffle_land_3.png)
 
-Seems like we can use SQLi, now let's try to view the users table in order to sign in to the site, for that we need to add the data of the users table to the output of the query, we can use union for that but it will only work if the number of attributes in the output is the same, let's start with finding the number of attributes in the products table using `' order by n -- -`, adding this to the query will sort the data according to the n'th attribute, and if n is bigger then the number of attributes in this table the query will cause an error, by doing so we can discover that the number of attributes in the product table (the table of waffles) is 5.\
+Seems like we can use SQLi, now let's try to view the users table in order to sign in to the site, for that we need to add data from the users table to the output of the query, we can use union for that but it will only work if the number of attributes in the the product table and the number of attributes of the data added is the same, let's start with finding the number of attributes in the product table using `' order by n -- -`, adding this to the query will sort the data according to the n'th attribute, and if n is bigger then the number of attributes in this table the query will cause an error, doing so we can discover that the number of attributes in the product table (the table of waffles) is 5.\
 with the number of attributes in mind we can try adding data, first we'll try using `' union select 1,2,3,4,5 -- -` this will add the row `1,2,3,4,5` to the output of the query, by doing so we get the following:
 
 ![](assets//images//waffle_land_4.png)
 
-It appears that the web server is blocking this search, so we might be working against a WAF after all (fitting the theme of this challenge), trying to work around this I discovered that the WAF is filtering searches with the string ` union select` so a simple workaround I found is using `/**/union/**/select` instead (I added a cheatsheet for this kind of thing in the resources), the symbol `/*` signifies the start of a comment and the symbol `*/` the end of a comment so using `/**/` doesn't change the query meaning but could possibly help us pass through the WAF, using  `'/**/union/**/select 1,2,3,4,5 -- -` gives us the following:
+It appears that the web server is blocking this search, so we might be working against a WAF after all (fitting the theme of this challenge), trying to work around the WAF I discovered that the WAF is only filtering searches with the string ` union select` so a simple workaround I discovered is using `/**/union/**/select` instead, the symbol `/*` signifies the start of a comment and the symbol `*/` the end of a comment so using `/**/` doesn't change the query's meaning but could possibly help us pass through the WAF, using  `'/**/union/**/select 1,2,3,4,5 -- -` gives us the following:
 
 ![](assets//images//waffle_land_5.png)
 
- It worked! so now we have a way to add data to the output, we still need to get data about the users, checking if we can select data from a table named `users` by using `'/**/union/**/select 1,2,3,4,5 from users -- -` gives us an error but by checking for `user` seems to work so we can guess there is a table named `user` in the database, we need to get usernames and passwords from this table, U discovered through this trial and error that there are attributes named `password` and `username` in this table so we can search for the following to get the data from this table:
+ So now we have a way to add data to the output, we still need to get data about the users so we need to know the name of table which stores users data and the attributes of the table, checking if we can select data from a table named `users` by using `'/**/union/**/select 1,2,3,4,5 from users -- -` gives us an error but by checking for `user` seems to work so we can guess there is a table named `user` in the database, we need to get usernames and passwords from this table, I discovered through trial and error that there attributes named `password` and `username` so we can search for the following to get the data we need from this table:
 
 `' and 0=1/**/union/**/select/**/1,username,password,4,5 from user ---`
 
@@ -427,11 +432,11 @@ the query executed will be:
 
 `select * from product where name like '' and 0=1/**/union/**/select/**/1,username,password,4,5 from user`
 
-this will first select the data from the product table and filter only the data that make the condition 0=1 true, so the query will filter all the data from this table, then it adds the data in the username and the password columns of the table user and the number 1,4 and 5 to pad the data so we can use union, we get the following output from the search:
+this will first select the data from the product table and filter only the data that satisfy the condition 0=1, so the query will filter all the data from the product table, then it adds the data in the username and the password columns of the table user and uses number 1,4 and 5 to pad the data so we can use union, from the search we get the password and the username for admin:
 
 ![](assets//images//waffle_land_6.png)
 
-And we got the password, we can now login as admin and receive the flag:
+We can now login as admin and receive the flag:
 
 ![](assets//images//waffle_land_7.png)
 
