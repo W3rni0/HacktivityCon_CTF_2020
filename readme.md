@@ -31,7 +31,7 @@ Download the file below.\
 
 **`flag{tyrannosauras_xor_in_reverse}`**
 
-**Solution:** With the challenge we get a file named fossil, running the file command reveals that the file is actually a python script:
+**Solution:** With the challenge we get a file named fossil, running the `file` command reveals that this file is actually a python script:
 
 ```python
 #!/usr/bin/env python
@@ -54,7 +54,8 @@ def enc(f):
     c = h(bytearray(z))
     return c
 ```
-This script contains an function called enc which is seemingly an encryption scheme and a variable c which we could guess is the product of running the function enc on the flag, so we may need to build a decryption scheme matching the encryption scheme implemented, for my sanity let's first deobfuscate the code a bit:
+
+This script contains a function called enc which is seemingly an encryption scheme and a variable c which we can guess is the product of running the function enc on the flag, so we may need to implement a decryption scheme matching the given encryption scheme, for my sanity let's first deobfuscate the code a bit:
 
 ```python
 #!/usr/bin/env python
@@ -72,20 +73,20 @@ def encyption(flag):
     c = binascii.hexlify(bytearray(z))
     return c
 ```
-Much better, now that we can actually read the code let's see what it does, the function first encodes the string to base64, then iterates over each character and xors each one with the one after it (the last character is xorred with the first), the bytes received by xorring are placed in an array and the final array of bytes is encoded to hex.\
-We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse, but the second part is trickier.\
-We can notice something interesting with the encryption in the second part, if we think of the first character as the initialization vector, then the encryption is similar to Cipher Block Chaining (CBC) mode of operation with no encryption and a block size of one, Cipher Block Chaining or CBC is a block cipher mode of operation, block ciphers split the plaintext into blocks of a size manageable by a cipher (for example AES works with blocks of sizes 128, 192 and 256 bits) and append the resulting ciphertext blocks together, a schema of the operation of CBC encryption:
+Much better, now that we can actually read the code let's see what it does, the function enc first encodes the string to base64, then iterates over each character and xors each one with the one after it (the last character is xorred with the first), the bytes received by xorring are placed in an array and the array is encoded to hex.\
+We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse as the modules used for this parts have the reverse functions, but the second part is trickier.\
+We can notice something interesting with the encryption in the second part, if we think of the first character as the initialization vector, then the encryption is similar to encryption with Cipher Block Chaining (CBC) mode of operation with no block cipher (the block cipher is an identity function) and a block size of one, Cipher Block Chaining or CBC is a block cipher mode of operation, modes of operation split the plaintext into blocks of a size manageable by a cipher (for example AES works with blocks of sizes 128, 192 and 256 bits) and append the resulting ciphertext blocks together, a schema of the operation of CBC:
 
 <div align=center>
   <img src='assets//images//fossil_1.png' style="background-color:white;" >
 </div>
 
 
-So in our case because there is no encryption the only value needed for decryption is the initialization vector or in other words the only thing that we miss on order to encrypt the whole ciphertext is the first letter....so we can just bruteforce it!
+So in our case because there is no block cipher so no key the only value needed for decryption is the initialization vector or in other words the only thing that we miss on order to encrypt the whole ciphertext is the first letter....so we can just bruteforce it!
 
-For people who didn't understand my reasoning, if we know the first letter we can xor it with the first character in the ciphertext to get the second character in the plaintext (by the properties of xor for value a,b we get that a ^ b ^ b = a and the first character in the cipher text is the first character in the plaintext xorred with the second character in the plaintext), and by using the second character we can get the third character doing the same operations and so on until we have decrypted all the ciphertext.
+For those who didn't understand my reasoning, if we know the first character we can xor it with the first character of the ciphertext to get the second character in the plaintext (by the properties of xor for values a,b we get that a ^ b ^ b = a and the first character in the cipher text is the first character in the plaintext xorred with the second character in the plaintext), by using the second character we can get the third character doing the same operations and so on until we have decrypted all the ciphertext.
 
-for the decryption I wrote the following script which goes through all the character in base64 and for each one tries to decrypt the message as if it's the first character in the plaintext:
+for that I wrote the following script which goes through all the character in base64 and for each one tries to decrypt the message as if it's the first character in the plaintext:
 
 ```python
 #!/usr/bin/env python
@@ -154,12 +155,13 @@ while(i < len(cipher)):
 print("}")
 ```
 
-by the name of the file we can infer that the code is built to decrypt the ciphertext stored in cipher_b64 and hopefully give us the flag but it seems a little bit slow...
+by the name of the file we can infer that the code purpose is to decrypt the ciphertext stored in cipher_b64 and hopefully print the flag, but it seems a little bit slow...
 
 ![](assets//images//perfect_1.gif)
 
-at this point it's somewhat stop printing characters but still runs. This challenge is quite similar to a challenge nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext the ciphertext and split in into an array of strings, then for each string it tries to find a value of n bigger then the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger then zero that "satisfy" a) it then xors the found n with the string and prints the result, this part is coded somewhat efficient, looking at the function a we see that for the parameter n the function goes through all the numbers smaller than n and checks if they divide n, if so it adds the value of the number to a running total, in the end the function check if the sum is equal to n and return True if so otherwise is returns False.\
-Basically function a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some prime q, furthermore we still haven't discovered odd perfect numbers so all the perfect numbers known to us (and important to this challenge) are even perfect number, so I took a list of q primes (the primes that make up Mersenne primes) off the internet and modified the code a bit so that instead of trying to find a perfect number it just used the next Mersenne prime to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
+at this point it's somewhat stop printing characters but still runs.\
+This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger then the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger then zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to the function a itslef, looking at this a we see that for the argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.\
+Basically a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some integer q, furthermore we still haven't discovered odd perfect numbers so all the perfect numbers known to us (and important to this challenge) are even perfect number, so I took a list of q's off the internet (the integers that make up Mersenne primes) and modified the code a bit so that instead of trying to find a perfect number it just uses the next Mersenne prime to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
 
 ```python
 import base64
@@ -207,7 +209,7 @@ nc jh2i.com 50021
 **Post-CTF Writeup**\
 **`flag{too_many_pancakes_on_the_stack}`**
 
-**Solution:** With the challenge we are given an executable and a port on a server running this executable, at first look we can see that the executable ask for how many pancakes we want and then prints us a nice ASCII art of pancakes:
+**Solution:** With the challenge we are given an executable and a port on a server running this executable, by running this executable we can see that it asks for how many pancakes we want and then prints us a nice ASCII art of pancakes:
 
 ![](assets//images//pancakes_1.png)
 
@@ -218,19 +220,20 @@ Okay now that we know what the executable does, let's see what we up against, us
 </div>
 
 
-We can see that the executable doesn't use canaries in order to protect from buffer overflows so might be able to overflow the return address and cause a segfault, let's try doing that:
+The executable doesn't use canaries to protect from buffer overflows so might be able to overflow the return address of a function and cause a segfault, let's try doing that:
 
 ![](assets//images//pancakes_3.png)
 
-We got a segfault! if you've noticed I used cyclic to get a segfault, cyclic is a tool from pwntools which create a string with a cyclic behavior, we can use this string in order to find the relative distance of important values on the stack from the start of the buffer, the command `cyclic -n 8 400` creates a cyclic string with length of 400 with a length of 8 to each cyclical substring, let's try that again but now while debugging with IDA, by placing a breakpoint at the retn command and looking at the value in stack before the execution of the instruction we can get the relative distance from the return address:
+We got a segfault! if you've noticed to cause the segfault I used `cyclic`, cyclic is a tool from pwntools which create a string with a cyclic behavior, we can use this string in order to find the relative distance of important values on the stack from the start of the buffer, the command `cyclic -n 8 400` creates a cyclic string of length 400 with cyclic substrings of length 8, let's try that again but now while debugging with IDA, by placing a breakpoint at the retn command of the main function and looking at the value in the stack before the execution of the instruction we can get the relative distance from the return address:
 
 ![](assets//images//pancakes_4.png)
 
-The value is `0x6161616161616174` or in ascii `aaaaaaat`, we can lookup the position of this string using the command `cyclic -n 8 -o taaaaaaa` notice that I wrote the string in reverse, that is because data is written to the stack from right to left, by running this command we get an offset of 152 from the start of the buffer, and we have a way to jump to any point in the executable by overflowing the stack right until the return address and then modifying the address to the one we choose, looking at the symbols we could see a function named secret_recipe, this function reads a file called flag.txt and then prints the content to the screen:
+The value is `0x6161616161616174` or `aaaaaaat` in ASCII, we can lookup the position of this substring using the command `cyclic -n 8 -o taaaaaaa` notice that I wrote the string in reverse, that is because data is written to the stack from right to left in IDA, by running this command we get an offset of 152 from the start of the buffer, and we have a way to jump to any point in the executable by overflowing the stack right until the return address and then modifying the address to the one we choose, looking at the symbols we can see a function named secret_recipe, this function reads a file named flag.txt and then prints it's content to the screen:
 
 ![](assets//images//pancakes_5.png)
 
-this function obviously prints the flag, so let's jump to it, for that I wrote the following script in python using the pwn module, this script connect to the server or runs the executable, finds the address of the function secret_recipe and creates the matching payload so that the function execution will jump to it, send the payload as input and print the flag:
+this function obviously prints the flag, so let's jump to it, so I wrote the following script in python using the pwn module, this script connects to the server or runs the executable, finds the address of the function secret_recipe and creates the matching payload so that the execution will return to this function after finishing with main,
+than the script sends the payload as input and print the flag received from the server/executable:
 
 ```python
 from pwn import *
@@ -272,28 +275,26 @@ http://jh2i.com:50018
 
 ![](assets//images//ladybug_1.png)
 
-The page seems pretty bare, there are some links to other pages in the webserver and an option to search the website or to contact ladybug using a form, I first tried checking if there's an XXS vulnerability in the contact page or an SQLi vulnerability / file inclusion vulnerability in the search option, that didn't seem to work, then I tried looking in the other pages in the hope I'll discover something there, none of them seemed very interesting, but, their location in the webserver stood out to me, all of them are in the `film/` directory, the next logical step was to fuzz the directory, by doing so I got an Error on the site:
+The page seems pretty bare, there are some links to other pages in the website and an option to search the website or to contact ladybug using a form, I first tried checking if there's a XXS vulnerability in the contact page or a SQLi vulnerability / file inclusion vulnerability in the search option, that didn't seem to work, then I tried looking in the other pages in the hope that I'll discover something there, none of those seemed very interesting, but, their location in the webserver stood out to me, all of them are in the `film/` directory, the next logical step was to fuzz the directory, doing so I got an Error on the site:
 
 ![](assets//images//ladybug_2.png)
 
-This is great because we now know that the site is in debugging mode (we could infer that also from the challenge description but oh well), also we now know that the site is using Flask as a web framework, Flask is a web framework which became very popular in recent years mostly due to it simplicity, the framework depends on a web server gateway interface (WSGI) library called Werkzeug, A WSGI is a calling convention for web servers to request to web frameworks (in our case Flask).\
-Werkzeug also provides a web server with a debugger and a console to execute Python expression from, we can navigate to the console using by navigating to `/console`:
-
-`
+This is great because we now know that the site is in debugging mode (we could also infer that from the challenge description but oh well), also we now know that the site is using Flask as a web framework, Flask is a web framework which became very popular in recent years mostly due to it simplicity, the framework depends on a web server gateway interface (WSGI) library called Werkzeug, A WSGI is a calling convention for web servers to forward requests to web frameworks (in our case Flask).\
+Werkzeug also provides web servers with a debugger and a console to execute Python expression from, we can find this console by navigating to `/console`:
 
 ![](assets//images//ladybug_3.png)
 
-From this console we can execute commands on the server (RCE), let's first see which user we are on the server, I used the following commands for that:
+From this console we can execute commands on the server (RCE), let's first see who are we on the server, I used the following commands for that:
 
 ```python
 import subprocess;out = subprocess.Popen(['whoami'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT);stdout,stderr = out.communicate();print(stdout);
 ```
 
-the command simply imports the subprocess library, creates a new process which execute `whoami` and prints the output of the command, by doing so we get:
+the command simply imports the subprocess library, creates a new process that executes `whoami` and prints the output of the command, by doing so we get:
 
 ![](assets//images//ladybug_4.png)
 
-The command worked!, now we can execute`ls` by changing the command in order to see which files are in the current directory, by doing so we see that there's a file called flag.txt in there, and by using `cat` on the file we get the flag:
+The command worked!, now we can execute `ls` to see which files are in our working directory, doing so we can see that there's a file called flag.txt in there, and by using `cat` on the file we get the flag:
 
 ![](assets//images//ladybug_5.png)
 
@@ -313,31 +314,31 @@ http://jh2i.com:50010
 
 ![](assets//images//bite_1.png)
 
-the site is about binary units, a possible clue for the exploit we need to use, it's seems we can search the site or navigate to other pages, by looking at the url we can see that it uses a parameter called page for picking which resource to display, so the format is:
+the site is about binary units, a possible clue for the exploit we need to use, it seems we can search the site or navigate to other pages, by looking at the url we can see that it uses a parameter called page for picking the resource to display, so the format is:
 
 `http://jh2i.com:50010/index.php?page=<resource>`
 
-we possibly have a local file inclusion vulnerability (LFI), as I explained in my writeup for nahamCon CTF:
+we possibly have a local file inclusion vulnerability (LFI) here, as I explained in my writeup for nahamCon CTF:
 
 >  PHP allows the inclusion of files from the server as parameters in order to extend the functionality of the script or to use code from other files, but if the script is not sanitizing the input as needed (filtering out sensitive files) an attacker can include any arbitrary file on the web server or at least use what's not filtered to his advantage
 
-let's first try including the PHP file itself, this will create some kind of a loop where the file included again and again and will probably cause the browser to crash...but it's a good indicator that we have an LFI vulnerability, navigating to `/index.php?page=index.php` gives us:
+Let's first try to include the PHP file itself, this will create some kind of a loop where this file is included again and again and will probably cause the browser to crash...but it's a good indicator that we have an LFI vulnerability without forcing us to use directory traversal, navigating to `/index.php?page=index.php` gives us:
 
 ![](assets//images//bite_2.png)
 
-index.php.php? it's seems that the PHP file includes a resource with a name  matching the parameter given appended to .php, lets try `/index.php?page=index` :
+index.php.php? it's seems that the PHP file includes a resource with a name matching the parameter given appended with .php, lets try `/index.php?page=index` :
 
 ![](assets//images//bite_3.png)
 
-It worked! so we know that we have an LFI vulnerability where the parameter given is appended to a php extension, appending a string to the parameter's value is a common defense mechanism against arbitrary file inclusion as we are now limited only to a small scope of files, hopefully only files that are safe to display, but there are ways to go around this.\
-In older versions of PHP by adding a null byte at the end of the parameter we can terminate the parameter's string, a null byte or null character is a character with the code `\x00`, this character signifies the end of a string in C and as such strings in C are often called null-terminated strings, because PHP uses C functions for filesystem related operations adding a null byte in the parameter will cause the C function to only consider the string before the null byte.
+It worked! so we know that we have an LFI vulnerability where the parameter given is appended to a php extension, appending a string to the user input is a common defense mechanism against arbitrary file inclusion as we are limited only to a small scope of files, hopefully only ones that are safe to display, but there are several ways to go around this.\
+In older versions of PHP by adding a null byte at the end of the parameter we can terminate the string, a null byte or null character is a character with an hex code of `\x00`, this character signifies the end of a string in C and as such strings in C are often called null-terminated strings, because PHP uses C functions for filesystem related operations adding a null byte in the parameter will cause the C function to only consider the string before the null byte.
 
-with that in mind let's check if we can use a null byte to display an arbitrary file, to mix things we'll try to include `/etc/passwd`, this file exists in all linux servers and is commonly accessible by all the users in the system (web applications running are considered as users in linux) as such it's common to display the content of this file in order to prove access to a server (as proof of concept), we can represent a null byte in url encoding using `%00`, navigating to `/index.php?page=/etc/passwd%00` gives us:
+With that in mind let's check if we can use a null byte to display an arbitrary file, to mix things we'll try to include `/etc/passwd`, this file exists in all linux servers and is commonly accessible by all the users in the system (web applications are considered as users in linux), as such it's common to display the content of this file in order to prove access to a server or an exploit (proof of concept), we can represent a null byte in url encoding using `%00`, navigating to `/index.php?page=/etc/passwd%00` gives us:
 
 ![](assets//images//bite_4.png)
 
 We can use null bytes!...but where is the flag located?\
-At this point I tried a lot of possible locations until I discovered that the flag is located in the root directory in a file called `file.txt` by navigating to `/index.php?page=/flag.txt%00` we get the flag:
+At this point I tried a lot of possible locations for the flag until I discovered that it's located in the root directory in a file called `file.txt` navigating to `/index.php?page=/flag.txt%00` gives us the flag:
 
 ![](assets//images//bite_5.png)
 
@@ -361,13 +362,13 @@ http://jh2i.com:50008
 ![](assets//images//gi_joe_1.png)
 
 By the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specification for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used to generate webpages dynamically, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.\
-Looking around in the web site I didn't find any other interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version which allows us to execute arbitrary code on the server, this vulnerability is often referred to by CVE-2012-1823 (or by CVE-2012-2311 because of later discovery related to this vulnerability).\
-In more details when providing vulnerable website with a value with no parameter (lacks the `=` symbol) the value is interpreted as options for the php-cgi program which handles communication with the web server related to PHP, the options available are listed in the man page in the resources, so for example by using the -s flag we can output the source code for a PHP file and so by adding `/?-s` to the url for a PHP file located on a vulnerable server we can view the source code of the file, let's try it on the index page (which is a PHP file) by navigating to `/index.php?-s` we get the following:
+Looking around in the website I couldn't find any interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version of PHP which allows us to execute arbitrary code on the server, this vulnerability is often referred to by CVE-2012-1823 (or by CVE-2012-2311 because of later a discovery related to this vulnerability).\
+In more details when providing vulnerable website with a value with no parameter (lacks of the `=` symbol) the value is interpreted as options for the php-cgi program which handles communication with the web server related to PHP, the options are listed in the man page linked in the resources, so for example by using the -s flag we can output the source code for a PHP file and so by adding `/?-s` to the URI for a PHP file located on a vulnerable server we can view the source code of the file, let's try it on the index page which is a PHP file, by navigating to `/index.php?-s` we get:
 
 ![](assets//images//gi_joe_2.png)
 
-It worked! and we now know that the flag is in a file called flag.txt in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the -d option, this option allows us to change and define INI entries, or in other words change the configuration files of PHP, we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to allow the usage of `php://input`, so by navigating to `/?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a PHP code to execute commands on the system `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.\
-let's try doing that to view the flag, we can use cURL with -i option to include the HTTP headers and --data-binary option to add the PHP code, in the PHP code we'll use `cat /flag.txt` to output the content of the file, the command is:
+It worked! and we now know that the flag is in a file called flag.txt in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the -d option, this option give us the ability to change and define INI entries, or in other words change the configuration file of PHP, in order to run commands we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to allow usage of `php://input`, so by navigating to `/?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a PHP code to execute commands on the system `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.\
+let's try doing that to view the flag, we can use cURL with the -i flag to include the HTTP headers and --data-binary flag to add the PHP code to the HTTP request, in the PHP code we'll use `cat /flag.txt` to output the content of the file, the command is:
 
 `curl -i --data-binary "<?php system(\"cat /flag.txt \") ?>" "http://jh2i.com:50008/?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input"`
 
@@ -394,7 +395,7 @@ http://jh2i.com:50024
 
 ![](assets//images//waffle_land_1.png)
 
-We have two options in this webpage, to search using the search bar or to sign in to the website using a username and a password, as we don't have any credentials let's try to fiddle with the search option. The search option returns only the waffles that has the search parameter in them, trying to insert the character `'` gives us an error message:
+There seems to be only two functionalities to this webpage, searching using the search bar or signing in using a username and a password, as we don't have any credentials let's try to fiddle with the search option. The search option returns only the waffles that has the search parameter in them, trying to insert the character `'` gives us an error message:
 
 ![](assets//images//waffle_land_2.png)
 
