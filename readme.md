@@ -281,13 +281,13 @@ http://jh2i.com:50023
 ![](assets//images//template_shack_1.png)
 
 By the name of the challenge we can guess we need to use Server-Side Template Injection or SSTI.\
-This vulnerability is caused due to the nature of template engine, template engines are programs designed to embed dynamic data into static template files, a good example for this king of templates are actually the one shown in this site, but using templates could allow attackers to inject template code to the website, because the template engine can't distinguish between the intended code and the data unsafe embedding of user input without sanitization could result with user input interpreted as code and parsed by the engine,  allowing attackers to reveal private information and even run arbitrary code on the server.\
-...but, this page doesn't seems to be vulnerable to SSTI, we could guess by the design and HTTP response headers that this site is running jinja as the template engine with flask as the framework.\
-After the CTF ended I discovered that there is an SSTI vulnerability...in the admin page, so we need to sign in as admin (again), looking around the website some more we can see that the site uses cookies to save user state, as I explained in a previous writeup:
+This vulnerability is caused due to the nature of template engine, template engines are programs designed to embed dynamic data into static template files, a good example for this kind of templates are actually the one shown in this site, but using templates could allow attackers to inject template code to the website, because the template engine can't distinguish between the intended code and data unsafe embedding of user input without sanitization could result with user input interpreted as code and parsed by the engine,  allowing attackers to reveal private information and even run arbitrary code on the server.\
+But, this page doesn't seems to be vulnerable to SSTI, we could guess by the design and HTTP response's headers that this site is running jinja as the template engine with flask as the framework.\
+After the CTF ended I discovered that there is an SSTI vulnerability...in the admin page, so we need to sign in as admin first, looking around the website some more we can see that the site uses cookies to save user state, as I explained in a previous writeup:
 
 >...because HTTP connection is stateless (doesn't save the state of the connection server-side) and because sometimes the server needs to know who is the user in a session it saves cookies on the computer of the user, cookies are data which is most of the time encrypted and sent with HTTP requests to helps the server recognize the user
 
-in our case it's actually a JSON Web Token or JWT, JWT is an internet standard for creating signed data and is used for authentication, a token composes of three parts separated by a dot:
+in our case the cookie is actually a JSON Web Token or JWT, JWT is an internet standard for creating signed information and is used mostly for authentication, a token composes of three parts separated by a dot:
 *  An Header, this header identifies the algorithm used to generate the signature (the third part of the token), this part is base64 encoded
 *  A Payload, contains the set of claims, or in other words the actual signed data, this part is also base64 encoded
 *  A signature, this part is used to validate the authenticity of the token, the signature is created by appending the previous two parts to a secret and then using the signing scheme or the message authentication code system listed in the header to encrypt the data.
@@ -296,16 +296,16 @@ Let's look at our token using a tool called jwt_tool (listed in the resources):
 
 ![](assets//images//template_shack_2.png)
 
-We have only one claim in the token's payload and it's for the username used, so we need to change the value to admin, there are multiple ways to modify a JWT but bruteforcing the secret key using a dictionary worked for me, we could do that using the same tool and a public dictionary for passwords called rockyou.txt with the following command:
+We have only one claim in the token's payload and it's for the username, so we need to change the value of the claim to admin, there are multiple ways to modify a JWT but bruteforcing the secret key using a dictionary worked for me, we could do that using the same tool and a public dictionary for passwords called rockyou.txt with the following command:
 
 `python3 jwt_tool.py -C eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6Imd1ZXN0In0.9SvIFMTsXt2gYNRF9I0ZhRhLQViY-MN7VaUutz9NA9Y -d rockyou.txt`
 
 
-By doing so we get the secret key `supersecret`, and we can modify the token to so that the username claimed is admin using the same tool, the modified token is:
+By doing so we get the secret key `supersecret`, and using the same tool and the secret key we can modify the token so that the username is admin, the modified token is:
 
 `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImFkbWluIn0.Ykqid4LTnSPZtoFb11H+/2q+Vo32g4mLpkEcajK0H7I`
 
-and by changing the cookie stored for the website to this token we are signed in as admin:
+and by changing the cookie stored for the website to this token we get signed in as admin:
 
 ![](assets//images//template_shack_3.png)
 
@@ -313,7 +313,7 @@ Checking out the admin page we see that it uses the first template shown on the 
 
 ![](assets//images//template_shack_4.png)
 
-so we now might be able to use SSTI, there are only two pages available two us, the charts page and the tables page, both show a 404 error:
+so we now might be able to use SSTI, there are only two pages available two us, the charts page and the tables page in the side toolbar, both show a 404 error:
 
 ![](assets//images//template_shack_5.png)
 
