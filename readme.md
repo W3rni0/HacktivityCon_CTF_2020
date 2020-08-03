@@ -257,7 +257,7 @@ btw if you don't see the image in the ASCII art maybe this will help:
 
 ![](assets//images//aesthetic_2.png)
 
-By giving input to the server we get an hex string in return with the message that flag is sprinkled to the end:
+By giving input to the server we get an hex string in return with the message that the flag is sprinkled to the end:
 
 ![](assets//images//aesthetic_3.png)
 
@@ -265,7 +265,7 @@ After a bit of fuzzing I discovered that giving an empty input we receive an hex
 
 ![](assets//images//aesthetic_4.png)
 
-furthermore by giving input with a length of 32 the second half of the hex string received is exactly the same as the hex string received when entering an empty input, this coupled with the reference to the block cipher AES in the challenge title led me to the conclusion that the server is encrypting using AES with Electronic Codebook (ECB) mode of operation our message appended to the flag and padded, as I explained in my writeup for Tyrannosaurus Rex modes of operation are use to allow block ciphers, which are limited by design to only specific lengths, to encrypt data of any length, this is done by splitting the data, encrypting it separately and then appending the resulting ciphertexts together, ECB mode of operation encrypt every block in isolation where other mode of operation performs more encryption between block so that block with the same plaintext won't have the same ciphertext, but ECB don't do that meaning that **ECB encrypts the same plaintext to the same ciphertext**, a schema of this mode:
+furthermore by giving input with a length of 32 the second half of the hex string received is exactly the same as the hex string received when entering an empty input, this coupled with the reference to the block cipher AES in the challenge title led me to the conclusion that the server is using AES-ECB (AES with Electronic Codebook mode of operation) to encrypt our message appended to the flag and padded, as I explained in my writeup for Tyrannosaurus Rex modes of operation are used to allow block ciphers, which are limited by design to only specific lengths of plaintext, to encrypt information of any length, this is done by splitting the data into blocks, encrypting each block separately and then appending the resulting ciphertexts blocks together, ECB mode of operation encrypt every block in isolation where other modes of operation perform more encryptions between blocks so that blocks with the same plaintext won't have the same ciphertext, but ECB don't do that - **ECB encrypts the same plaintexts to the same ciphertexts**, a schema of this mode:
 
 <div align=center>
   <img src='assets//images//aesthetic_5.png' style="background-color:white;" >
@@ -273,8 +273,8 @@ furthermore by giving input with a length of 32 the second half of the hex strin
 
 so now that we know how the hex value is created we can use a nice attack that John Hammond showed in a [recent video](https://www.youtube.com/watch?v=f-iz_ZAS258).
 
-Because we know that input of length higher than 32 gives us an output with 64 more characters we can assume that the plaintext (our input appended to the flag) is split into blocks of 32 characters, so when our input is 32 characters long the first block in the ciphertext (first 64 characters in the ciphertext) is entirely our input and the second block in the ciphertext is the flag with the padding, and when our input is 31 characters long the first block in the ciphertext is our input with the first letter of the flag in the end.\
-so we can use a string of 31 characters and iterate over all the characters and check if the first block in the ciphertext when the input is our string appended to this (so the block is entirely our input) is equal to the first block of the ciphertext when the input is only our string (so the block is our input and the first character of the flag), after finding the first letter we can do the same for the second letter now using a string of 30 appended to the discovered first letter and so on for all the latter using the discovered start of the flag, more formally:
+Because we know that input of length higher than 32 gives us an output with 64 more characters we can assume that the plaintext (our input appended to the flag and padded) is split into blocks of 32 characters, so when our input is 32 characters long the first block in the ciphertext (first 64 characters in the ciphertext) is entirely our input and the second block in the ciphertext is the flag with the padding, and when our input is 31 characters long the first block in the ciphertext is our input with the first letter of the flag in the end.\
+so we can use a string of 31 characters and iterate over all the characters and check if the first block in the ciphertext when the input is our string appended to this (so the block is entirely our input) is equal to the first block of the ciphertext when the input is only our string (so the block is our input and the first character of the flag), after finding the first letter we can do the same for the second letter now using a string of 30 appended to the discovered first letter and so on for all the latter using the discovered start of the flag as the end of the string, more formally:
 
 ![](assets//images//aesthetic_6.png)
 
