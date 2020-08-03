@@ -14,6 +14,7 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
   - [Perfect XOR](#perfect-xor)
   - [Bon Appetit](#bon-appetit)
   - [A E S T H E T I C](#a-e-s-t-h-e-t-i-c)
+  - [OFBuscated](#ofbuscated)
 * [Binary Exploitation](#binary-exploitation)
   - [Pancakes](#pancakes)
 * [Web](#web)
@@ -310,6 +311,236 @@ and running this script gives us the flag:
 **Resources:**
 * Block Cipher: https://en.wikipedia.org/wiki/Block_cipher
 * Block Cipher modes of operation and ECB: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
+
+
+## OFBuscated
+I just learned some lesser used AES versions and decided to make my own!
+
+Connect here:\
+`nc jh2i.com 50028`
+
+[obfuscated.py](assets//scripts//ofbuscated.py)
+
+**Post-CTF Writeup**\
+**`flag{bop_it_twist_it_pull_it_lol}`**
+
+**Solution:** With the challenge we are given a port on a server to connect to and a python script, let's start with the server, by connecting to it we get an hex string:
+
+![](assets//images//obfuscated_1.png)
+
+and by reconnecting we get a different one:
+
+![](assets//images//obfuscated_2.png)
+
+this doesn't give us a lot of information so let's look at the script:
+
+```python
+#!/usr/bin/env python3
+
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import random
+import os
+import socketserver
+import string
+import threading
+from time import *
+import random
+import time
+import binascii
+
+iv = #####REDACTED#####
+key = #####REDACTED#####
+flag = open("flag.txt", "rb").read().strip()
+
+class Service(socketserver.BaseRequestHandler):
+
+    def handle(self):
+        assert len(flag) % 16 == 1
+        blocks = self.shuffle(flag)
+        ct = self.encrypt(blocks)
+        self.send(binascii.hexlify(ct))
+
+    def byte_xor(self, ba1, ba2):
+        return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+    def encrypt(self, blocks):
+        curr = iv
+        ct = []
+        cipher = AES.new(key, AES.MODE_ECB)
+        for block in blocks:
+            curr = cipher.encrypt(curr)
+            ct.append(self.byte_xor(block, curr))
+        return b''.join(ct)
+
+    def shuffle(self, pt):
+        pt = pad(pt, 16)
+        pt = [pt[i: i + 16] for i in range(0, len(pt), 16)]
+        random.shuffle(pt)
+        return pt
+
+    def send(self, string, newline=True):
+        if type(string) is str:
+            string = string.encode("utf-8")
+
+        if newline:
+            string = string + b"\n"
+        self.request.sendall(string)
+
+    def receive(self, prompt="> "):
+        self.send(prompt, newline=False)
+        return self.request.recv(4096).strip()
+
+
+class ThreadedService(
+    socketserver.ThreadingMixIn,
+    socketserver.TCPServer,
+    socketserver.DatagramRequestHandler,
+):
+    pass
+
+
+def main():
+
+    port = 3156
+    host = "0.0.0.0"
+
+    service = Service
+    server = ThreadedService((host, port), service)
+    server.allow_reuse_address = True
+
+    server_thread = threading.Thread(target=server.serve_forever)
+
+    server_thread.daemon = True
+    server_thread.start()
+
+    print("Server started on " + str(server.server_address) + "!")
+
+    # Now let the main thread just wait...
+    while True:
+        sleep(10)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+From the main function we can assume that this is the script running on the port we get, but it doesn't seems to be important so let's get rid of it and while we at it remote the ThreadedService class and the receive function as there is no use to it:
+
+```python
+#!/usr/bin/env python3
+
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import random
+import os
+import socketserver
+import string
+import threading
+from time import *
+import random
+import time
+import binascii
+
+iv = #####REDACTED#####
+key = #####REDACTED#####
+flag = open("flag.txt", "rb").read().strip()
+
+def handle():
+	assert len(flag) % 16 == 1
+	blocks = shuffle(flag)
+	ct = encrypt(blocks)
+	send(binascii.hexlify(ct))
+
+def byte_xor(ba1, ba2):
+	return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+def encrypt(blocks):
+	curr = iv
+	ct = []
+	cipher = AES.new(key, AES.MODE_ECB)
+	for block in blocks:
+		curr = cipher.encrypt(curr)
+		ct.append(byte_xor(block, curr))
+	return b''.join(ct)
+
+def shuffle(pt):
+	pt = pad(pt, 16)
+	pt = [pt[i: i + 16] for i in range(0, len(pt), 16)]
+	random.shuffle(pt)
+	return pt
+
+def send(string, newline=True):
+	if type(string) is str:
+		string = string.encode("utf-8")
+
+	if newline:
+		string = string + b"\n"
+	request.sendall(string)
+
+```
+
+Our main function is handle, it start by asserting that the length of the flag modulo 16 is 1, so we now know that the length of the flag is 16 * k + 1 for some number k, then it invoke a function called shuffle, this function pads the flag to a length divided by 16, so the length after padding is 16 * (k + 1), notice that is uses the method pad from Crypto.Util.Padding, this method uses PKCS7 padding style by default which pads the length of the text to the end of it, so basically our flag is now padded with the number 16 * k + 1 to a length of 16 * (k + 1), afterwards the method splits the padded flag into blocks of size 16 and shuffles the blocks using random.shuffle, so overall after invoking shuffle we are an array of k + 1 blocks in a random order, where each block is a length 16 and a part of the flag padded with his length.
+
+Afterwards, handle calls encrypt with the blocks as argument,  for each block the method encrypt well....encrypts iv using AES-ECB, xors it with the block and then append the result to an array, this type of encryption is actually AES-OFB or in other words AES in Output Feedback mode of operation (it seems the organizers really loves block cipher's modes of operation), so as I explained in the previous challenge modes of operation allows block cipher to encrypt data of any length by splitting the data into blocks and encrypting each one separately and in the end appending the ciphertext together, OFB is very interesting in that regard because the data itself is not encrypted by AES in any stage but the initialization vector or iv is, and then each encrypted block of iv is xorred with a block of the plaintext to create the ciphertext, because of this we can think of this mode of operation as a one time pad (OTP), this is because we can perform all the encryption of iv beforehand and only xor the whole plaintext with it while we need, and if you've know what is an OTP you probably can guess why this is bad, a schema of this mode:
+
+![](assets//images//obfuscated_3.png)
+
+after encryption the ciphertext created is hexified and sent.
+
+So why this is bad? as I said this encryption is basically OTP where the key is the encrypted iv, it is unsafe to reuse keys with OTP encoding because if we one two ciphertext created by the same key c1 = m1 ^ k and c2 = m2 ^ k we can xor the ciphertext to get c1 ^ c2 = m1 ^ k ^ m2 ^ k = m1 ^ m2 and if furthermore by having a message and its encryption we can retrieve the key (this is called a known plaintext attack), but why is all this relevant to us? well, because we actually know what is the last block, but first let's find the length of plaintext, we can do that by just decoding the hex value with get from the server to bytes and counting the number of bytes, by doing so we find that the length of the plaintext is 48 meaning that 16 * ( k + 1 ) = 48 and k = 2, and so we now know that our flag has a length of 33 and the number of blocks in the encryption is 3, okay why we know the last block? simply because we know that it comprises of the last character of the flag, which is a curly brace `}`, and then padding using the number 33, and why this is bad? let's say we have a list of all the possible encryptions of the first block of ciphertext (there are exactly 3), let them be b1, b2 and b3, one of them is obviously an encryption of the block we know, let's say its b2, and all of them are encrypted by xorring the same value k, so if we xor every block with every other block and xor that we the block we know there must be 2 block of plaintext, that's because xorring b2 with its plaintext results with k, and xorring k with every other block will result with b1 and b3, so we've just discovered all the plaintext!
+
+So I wrote the following code to perform the attack, the code reconnects to server until it has all the possible values of the first block, then it xors the values between themselves and between the known plaintext block and check if the result is a printable string (it's very unlikely we'll get a printable result which is not in the flag), if so it finds its position in the flag (using the flag format) and prints the result:
+
+```python
+from pwn import *
+import binascii
+from Crypto.Util.Padding import pad, unpad
+from string import printable
+
+def byte_xor(ba1, ba2):
+	return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+# all possible combinations of plaintext blocks and encrypted IV
+possible_ct_blocks = []
+
+# the most likely third and final block
+third_block = pad(b'a' * 32 + b'}', 16)[-16:]
+
+# the flag
+flag = [b'',b'', third_block]
+
+# finds all the values of the first block in the ciphertext
+while True:
+	s = remote('jh2i.com', 50028)
+	ct_block = binascii.unhexlify(s.recvline().decode('utf-8')[:-1])[:16]
+  s.close()
+	if ct_block not in possible_ct_blocks:
+		possible_ct_blocks += [ct_block]
+	if len(possible_ct_blocks) == 3:
+		break
+
+# decrypts the data using knowladge of the third block and the posibility of it being in every position
+for j in range(3):
+	xorred_block = bytes(byte_xor(possible_ct_blocks[j], possible_ct_blocks[(j + 1) % 3]))
+	xorred_block = byte_xor(xorred_block, third_block)
+	if all(chr(c) in printable for c in xorred_block):
+		if b'flag' in xorred_block:
+			flag[0] = xorred_block
+		else:
+			flag[1] = xorred_block
+
+
+print(unpad(b''.join(flag), 16).decode('utf-8'))
+```
+and we got the flag:
+
+![](assets//images//obfuscated_4.png)
+
+**Resources:**
+* Block Cipher: https://en.wikipedia.org/wiki/Block_cipher
+* Block Cipher modes of operation and ECB: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
+* One Time Pad (OTP): https://en.wikipedia.org/wiki/One-time_pad
 
 ***
 
