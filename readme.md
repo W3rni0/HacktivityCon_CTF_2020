@@ -12,6 +12,7 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
 * [Cryptography](#cryptography)
   - [Tyrannosaurus Rex](#tyrannosaurus-rex)
   - [Perfect XOR](#perfect-xor)
+  - [Bon Appetit](#bon-appetit)
 * [Binary Exploitation](#binary-exploitation)
   - [Pancakes](#pancakes)
 * [Web](#web)
@@ -201,6 +202,47 @@ And by running this more efficient code we get the flag in no time:
 * The list I used: https://www.math.utah.edu/~pa/math/mersenne.html#:~:text=p%20%3D%202%2C%203%2C%205,%2C%2024036583%2C%2025964951%2C%2030402457.
 
 ***
+
+## Bon Appetit
+Wow, look at the size of that! There is just so much to eat!
+
+Download the file below.\
+[prompt.txt](assets//files//prompt.txt)
+
+**Post-CTF Writeup**\
+**`flag{bon_appetit_that_was_one_big_meal}`**
+
+**Solution:** With the challenge we get a text file with the following content:
+
+```
+n = 86431753033855985150102208955150746586984567379198773779001331665367046453352820308880271669822455250275431988006538670370772552305524017849991185913742092236107854495476674896994207609393292792117921602704960758666683584350417558805524933062668049116636465650763347823718120563639928978056322149710777096619
+
+e = 43593315545590924566741189956390609253174017258933397294791907025439424425774036889638411588405163282027748339397612059157433970580764560513322386317250465583343254411506953895016705520492303066099891805233630388103484393657354623514864187319578938539051552967682959449373268200012558801313113531016410903723
+
+c = 6017385445033775122298094219645257172271491520435372858165807340335108272067850311951631832540055908237902072239439990174700038153658826905580623598761388867106266417340542206012950531616502674237610428277052393911078615817819668756516229271606749753721145798023983027473008670407713937202613809743778378902
+```
+
+This is obviously an RSA encryption with n being the modulus, e being the public exponent and c being a ciphertext, as I explained in previous challenges:
+
+> ... RSA is a public key cipher, which means that there are two keys, one that is public which is used to encrypt data, and one that is private which is used to decrypt data, obviously there is some sort of connection between the keys but it is hard to reveal the private key from the public keys (and in this case vice versa), specifically in RSA in order to find the private key we need to solve the integer factorization problem, which is thought to be in NP/P (this is not important for the challenge), we will call our public key e and our private key d, they posses the following attribute - d multiply by e modulo the value of (p-1) * (q-1) which we will name from now phi, is equal to 1, we will call d the modular multiplicative inverse of e and e the modular multiplicative inverse of d, furthermore if we take a plaintext message pt and raise it to the power of d and then to the power of e modulo the value of p * q, which we will name n and will be commonly given to us instead of q and p, we will get pt again (to understand why it is needed to delve into modern algebra, if n is smaller than pt then obviously we will not get pt), now with that in mind we can talk about the cipher, encryption in this cipher is raising the plaintext pt to the power of the public key e mod the value of n, similarly, decryption is raising the ciphertext to the power of d mod n...
+
+The common methods for breaking RSA is using a factor database that stores factors or using somewhat efficient algorithms and heuristics in order to factor the modulus n, both won't work with an n as big as that, so we need to use less common attack, notice the public exponent e, it's very big, almost as big as the modulus itself, we often use very small exponent such as 3 and 65537 (there's even a variant of RSA which uses 2 as the public exponent) so a usage of large public exponent is most likely an indication that the private exponent d is small.
+
+For small private exponents there are 2 main attacks - Weiner's Attack and Boneh & Durfee's attack, the first attack is simpler and uses continued fraction to efficiently find d if d is smaller then modulus n to the power of 0.25, the later attack is much more complex relying on solving the small inverse problem efficiently to find d if d is smaller the modulus n to the power of 0.285 (or 0.292...the conclusions are inconclusive), after trying to use Weiner's attack and failing I succeeded in using Boneh & Durfee's attack.
+
+Unfortunately I can't explain in details how this attack works because it requires a lot of preliminary knowledge but I'll add both the papers of Weiner and Boneh & Durfee about the attacks in the resources for those interested (I'll maybe add an explanation later on the small inverse problem and how it's connected), for this attack I used a sage script I found online, updated it to python 3 and changed the size of the lattice to 6 and the value of delta (the power of n) to 0.26 to guarantee that the key is found, the modified code is [linked here](assets//scripts//buneh_durfee.sage) if you want to try it yourself (link for an online sage interpreter is in the resources), by running this code we find the private key and using it to decrypt the ciphertext we get the flag:
+
+![](assets//images//bon_appetit_1.png)
+
+**Resources:**
+* Weiner's attack: http://monge.univ-mlv.fr/~jyt/Crypto/4/10.1.1.92.5261.pdf
+* Boneh & Durfee's attack: https://link.springer.com/content/pdf/10.1007%2F3-540-48910-X_1.pdf
+* Script used: https://www.cryptologie.net/article/241/implementation-of-boneh-and-durfee-attack-on-rsas-low-private-exponents/
+* Web Sage interpreter: https://sagecell.sagemath.org/
+
+
+
+
 
 # Binary Exploitation
 
