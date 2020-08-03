@@ -76,8 +76,10 @@ def encyption(flag):
     c = binascii.hexlify(bytearray(z))
     return c
 ```
-Much better, now that we can actually read the code let's see what it does, the function enc first encodes the string to base64, then iterates over each character and xors each one with the one after it (the last character is xorred with the first), the bytes received by xorring are placed in an array and the array is encoded to hex.\
-We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse as the modules used for this parts have the reverse functions, but the second part is trickier.\
+Much better, now that we can actually read the code let's see what it does, the function enc first encodes the string to base64, then iterates over each character and xors each one with the one after it (the last character is xorred with the first), the bytes received by xorring are placed in an array and the array is encoded to hex.
+
+We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse as the modules used for this parts have the reverse functions, but the second part is trickier.
+
 We can notice something interesting with the encryption in the second part, if we think of the first character as the initialization vector, then the encryption is similar to encryption with Cipher Block Chaining (CBC) mode of operation with no block cipher (the block cipher is an identity function) and a block size of one, Cipher Block Chaining or CBC is a block cipher mode of operation, modes of operation split the plaintext into blocks of a size manageable by a cipher (for example AES works with blocks of sizes 128, 192 and 256 bits) and append the resulting ciphertext blocks together, a schema of the operation of CBC:
 
 <div align=center>
@@ -163,7 +165,8 @@ by the name of the file we can infer that the code purpose is to decrypt the cip
 ![](assets//images//perfect_1.gif)
 
 at this point it's somewhat stop printing characters but still runs.\
-This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger then the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger then zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to the function a itslef, looking at this a we see that for the argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.\
+This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger then the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger then zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to the function a itslef, looking at this a we see that for the argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.
+
 Basically a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some integer q, furthermore we still haven't discovered odd perfect numbers so all the perfect numbers known to us (and important to this challenge) are even perfect number, so I took a list of q's off the internet (the integers that make up Mersenne primes) and modified the code a bit so that instead of trying to find a perfect number it just uses the next Mersenne prime to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
 
 ```python
@@ -284,7 +287,8 @@ The page seems pretty bare, there are some links to other pages in the website a
 
 ![](assets//images//ladybug_2.png)
 
-This is great because we now know that the site is in debugging mode (we could also infer that from the challenge description but oh well), also we now know that the site is using Flask as a web framework, Flask is a web framework which became very popular in recent years mostly due to it simplicity, the framework depends on a web server gateway interface (WSGI) library called Werkzeug, A WSGI is a calling convention for web servers to forward requests to web frameworks (in our case Flask).\
+This is great because we now know that the site is in debugging mode (we could also infer that from the challenge description but oh well), also we now know that the site is using Flask as a web framework, Flask is a web framework which became very popular in recent years mostly due to it simplicity, the framework depends on a web server gateway interface (WSGI) library called Werkzeug, A WSGI is a calling convention for web servers to forward requests to web frameworks (in our case Flask).
+
 Werkzeug also provides web servers with a debugger and a console to execute Python expression from, we can find this console by navigating to `/console`:
 
 ![](assets//images//ladybug_3.png)
@@ -335,7 +339,8 @@ index.php.php? it's seems that the PHP file includes a resource with a name matc
 
 ![](assets//images//bite_3.png)
 
-It worked! so we know that we have an LFI vulnerability where the parameter given is appended to a php extension, appending a string to the user input is a common defense mechanism against arbitrary file inclusion as we are limited only to a small scope of files, hopefully only ones that are safe to display, but there are several ways to go around this.\
+It worked! so we know that we have an LFI vulnerability where the parameter given is appended to a php extension, appending a string to the user input is a common defense mechanism against arbitrary file inclusion as we are limited only to a small scope of files, hopefully only ones that are safe to display, but there are several ways to go around this.
+
 In older versions of PHP by adding a null byte at the end of the parameter we can terminate the string, a null byte or null character is a character with an hex code of `\x00`, this character signifies the end of a string in C and as such strings in C are often called null-terminated strings, because PHP uses C functions for filesystem related operations adding a null byte in the parameter will cause the C function to only consider the string before the null byte.
 
 With that in mind let's check if we can use a null byte to display an arbitrary file, to mix things we'll try to include `/etc/passwd`, this file exists in all linux servers and is commonly accessible by all the users in the system (web applications are considered as users in linux), as such it's common to display the content of this file in order to prove access to a server or an exploit (proof of concept), we can represent a null byte in url encoding using `%00`, navigating to `/index.php?page=/etc/passwd%00` gives us:
@@ -366,13 +371,16 @@ http://jh2i.com:50008
 
 ![](assets//images//gi_joe_1.png)
 
-By the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specification for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used to generate webpages dynamically, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.\
-Looking around in the website I couldn't find any interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version of PHP which allows us to execute arbitrary code on the server, this vulnerability is often referred to by CVE-2012-1823 (or by CVE-2012-2311 because of later a discovery related to this vulnerability).\
+By the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specification for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used to generate webpages dynamically, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.
+
+Looking around in the website I couldn't find any interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version of PHP which allows us to execute arbitrary code on the server, this vulnerability is often referred to by CVE-2012-1823 (or by CVE-2012-2311 because of later a discovery related to this vulnerability).
+
 In more details when providing vulnerable website with a value with no parameter (lacks of the `=` symbol) the value is interpreted as options for the php-cgi program which handles communication with the web server related to PHP, the options are listed in the man page linked in the resources, so for example by using the -s flag we can output the source code for a PHP file and so by adding `/?-s` to the URI for a PHP file located on a vulnerable server we can view the source code of the file, let's try it on the index page which is a PHP file, by navigating to `/index.php?-s` we get:
 
 ![](assets//images//gi_joe_2.png)
 
-It worked! and we now know that the flag is in a file called flag.txt in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the -d option, this option give us the ability to change and define INI entries, or in other words change the configuration file of PHP, in order to run commands we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to allow usage of `php://input`, so by navigating to `/?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a PHP code to execute commands on the system `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.\
+It worked! and we now know that the flag is in a file called flag.txt in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the -d option, this option give us the ability to change and define INI entries, or in other words change the configuration file of PHP, in order to run commands we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to allow usage of `php://input`, so by navigating to `/?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a PHP code to execute commands on the system `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.
+
 let's try doing that to view the flag, we can use cURL with the -i flag to include the HTTP headers and --data-binary flag to add the PHP code to the HTTP request, in the PHP code we'll use `cat /flag.txt` to output the content of the file, the command is:
 
 `curl -i --data-binary "<?php system(\"cat /flag.txt \") ?>" "http://jh2i.com:50008/?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input"`
@@ -404,19 +412,22 @@ There seems to be only two functionalities to this webpage, searching using the 
 
 ![](assets//images//waffle_land_2.png)
 
-This gives us information about two things, first we know now that the search option uses SQL to filter data, SQL is a language designed for managing and querying databases (with SQL it is common to think of databases as tables with rows of data and columns of attributes), in this case a SQL query is used to select all the products with the having a value in the name attribute similar to the input given, second we know that the web server uses SQLite3 management system, this has some influence on the version of SQL used and on the operations we can use or exploit.\
+This gives us information about two things, first we know now that the search option uses SQL to filter data, SQL is a language designed for managing and querying databases (with SQL it is common to think of databases as tables with rows of data and columns of attributes), in this case a SQL query is used to select all the products with the having a value in the name attribute similar to the input given, second we know that the web server uses SQLite3 management system, this has some influence on the version of SQL used and on the operations we can use or exploit.
+
 A common attack against SQL systems is using SQL injection or SQLi, computers can't differentiate between data and commands and as such it's sometime possible to inject commands where data is requested, for example we can search for `' limit 1 ---` and this will cause the SQL management system if it's vulnerable to SQLi to execute the following query:
 
 `select * from product where name like '' limit 1`
 
 this query returns the first row of data in the product table, this will be executed because we closed the quotations and added `-- -` at the end which signifies that the rest of the string is a comment.
-To prevent this attack there are systems in place to filter (sanitize) the input given, one of those is a Web Application Firewall or WAF, this type of systems monitor the HTTP traffic of a web server and prevent attacks such as SQLi by blocking suspicious traffic.\
+To prevent this attack there are systems in place to filter (sanitize) the input given, one of those is a Web Application Firewall or WAF, this type of systems monitor the HTTP traffic of a web server and prevent attacks such as SQLi by blocking suspicious traffic.
+
 Let's first check if we have SQLi to begin with, using the search parameter in the example above gives us the following:
 
 ![](assets//images//waffle_land_3.png)
 
-Seems like we can use SQLi, now let's try to view the users table in order to sign in to the site, for that we need to add data from the users table to the output of the query, we can use union for that but it will only work if the number of attributes in the the product table and the number of attributes of the data added is the same, let's start with finding the number of attributes in the product table using `' order by n -- -`, adding this to the query will sort the data according to the n'th attribute, and if n is bigger then the number of attributes in this table the query will cause an error, doing so we can discover that the number of attributes in the product table (the table of waffles) is 5.\
-with the number of attributes in mind we can try adding data, first we'll try using `' union select 1,2,3,4,5 -- -` this will add the row `1,2,3,4,5` to the output of the query, by doing so we get the following:
+Seems like we can use SQLi, now let's try to view the users table in order to sign in to the site, for that we need to add data from the users table to the output of the query, we can use union for that but it will only work if the number of attributes in the the product table and the number of attributes of the data added is the same, let's start with finding the number of attributes in the product table using `' order by n -- -`, adding this to the query will sort the data according to the n'th attribute, and if n is bigger then the number of attributes in this table the query will cause an error, doing so we can discover that the number of attributes in the product table (the table of waffles) is 5.
+
+With the number of attributes in mind we can try adding data, first we'll try using `' union select 1,2,3,4,5 -- -` this will add the row `1,2,3,4,5` to the output of the query, by doing so we get the following:
 
 ![](assets//images//waffle_land_4.png)
 
@@ -471,18 +482,19 @@ Okay so we have a username that is administrator...what's next? after a bit of f
 
 ![](assets//images//lightweight_4.png)
 
-by googling the error message I discovered that this website using a protocol called LDAP for the search, LDAP or Lightweight Directory Access Protocol is a protocol for accessing directory service over the internet (directory service is a shared information infrastructure, can be thought of as a database for this challenge), in this protocol the symbol `*` stands for a wildcard and filtering is done using `(<attribute>=<value>)` and filters can be appended together. By searching for `*` we can view the display name and the email of employees, one that stand out is the employee with the display name `Administrator User`, by trying to search for `Admin*` we can see that only the row with this employee is left, so we can assume that the statement used by the search option is `(name=<search input>)` and that we need to discover the description for the employee with the name `Administrator User`.\
+by googling the error message I discovered that this website using a protocol called LDAP for the search, LDAP or Lightweight Directory Access Protocol is a protocol for accessing directory service over the internet (directory service is a shared information infrastructure, can be thought of as a database for this challenge), in this protocol the symbol `*` stands for a wildcard and filtering is done using `(<attribute>=<value>)` and filters can be appended together. By searching for `*` we can view the display name and the email of employees, one that stand out is the employee with the display name `Administrator User`, by trying to search for `Admin*` we can see that only the row with this employee is left, so we can assume that the statement used by the search option is `(name=<search input>)` and that we need to discover the description for the employee with the name `Administrator User`.
+
 A common attack against LDAP is using LDAP injection which is very similar to SQL injection, a simple example for LDAP injection is to search for `*)(mail=administrator@hacktivitycon*` the statement that will be executed by our assumption is:
 
  `(name=*)(email=administrator@hacktivitycon.local)`
 
- and only the employee(s) with this email will be displayed, trying that gives us:
+and only the employee(s) with this email will be displayed, trying that gives us:
 
  ![](assets//images//lightweight_5.png)
 
- and it seems that we can use LDAP injection, so we want to get the password stores in  the description of the administrator but we cannot display it so we can do something similar to blind SQL injection, by search for `Admin*)(description=<string>*` and changing the value of string character by character, we have two options:
- * The value is the start of password and the information about the Administrator will be displayed as it matches both of the filters.
- * The value is not the start of the password and information about the Administrator will not be displayed because it doesn't match the second filter.
+and it seems that we can use LDAP injection, so we want to get the password stores in  the description of the administrator but we cannot display it so we can do something similar to blind SQL injection, by search for `Admin*)(description=<string>*` and changing the value of string character by character, we have two options:
+* The value is the start of password and the information about the Administrator will be displayed as it matches both of the filters.
+* The value is not the start of the password and information about the Administrator will not be displayed because it doesn't match the second filter.
 
 we can start with an empty string an go through all the characters trying to append the character to the string until information about the Admin is displayed, at this point we know that the string is the start of the password and we can try to add another character to the string by again going through all the characters and so on until we can no longer add characters, so I wrote a python script to do that:
 
@@ -529,7 +541,8 @@ http://jh2i.com:50023
 ![](assets//images//template_shack_1.png)
 
 By the name of the challenge we can guess we need to use Server-Side Template Injection or SSTI.\
-This vulnerability is caused due to the nature of template engine, template engines are programs designed to embed dynamic data into static template files, a good example for this kind of templates are actually the one shown in this site, but using templates could allow attackers to inject template code to the website, because the template engine can't distinguish between the intended code and data unsafe embedding of user input without sanitization could result with user input interpreted as code and parsed by the engine,  allowing attackers to reveal private information and even run arbitrary code on the server.\
+This vulnerability is caused due to the nature of template engine, template engines are programs designed to embed dynamic data into static template files, a good example for this kind of templates are actually the one shown in this site, but using templates could allow attackers to inject template code to the website, because the template engine can't distinguish between the intended code and data unsafe embedding of user input without sanitization could result with user input interpreted as code and parsed by the engine,  allowing attackers to reveal private information and even run arbitrary code on the server.
+
 But, this page doesn't seems to be vulnerable to SSTI, we could guess by the design and HTTP response's headers that this site is running jinja as the template engine with flask as the framework.\
 After the CTF ended I discovered that there is an SSTI vulnerability...in the admin page, so we need to sign in as admin first, looking around the website some more we can see that the site uses cookies to save user state, as I explained in a previous writeup:
 
