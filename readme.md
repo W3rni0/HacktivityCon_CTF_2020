@@ -13,6 +13,7 @@ This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding
   - [Tyrannosaurus Rex](#tyrannosaurus-rex)
   - [Perfect XOR](#perfect-xor)
   - [Bon Appetit](#bon-appetit)
+  - [A E S T H E T I C](#a-e-s-t-h-e-t-i-c)
 * [Binary Exploitation](#binary-exploitation)
   - [Pancakes](#pancakes)
 * [Web](#web)
@@ -166,7 +167,7 @@ by the name of the file we can infer that the code purpose is to decrypt the cip
 ![](assets//images//perfect_1.gif)
 
 at this point it's somewhat stop printing characters but still runs.\
-This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger then the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger then zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to the function a itslef, looking at this a we see that for the argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.
+This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger than the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger than zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to the function a itslef, looking at this a we see that for the argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.
 
 Basically a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some integer q, furthermore we still haven't discovered odd perfect numbers so all the perfect numbers known to us (and important to this challenge) are even perfect number, so I took a list of q's off the internet (the integers that make up Mersenne primes) and modified the code a bit so that instead of trying to find a perfect number it just uses the next Mersenne prime to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
 
@@ -199,9 +200,7 @@ And by running this more efficient code we get the flag in no time:
 **Resources:**
 * Perfect Number: https://en.wikipedia.org/wiki/Perfect_number
 * Mersenne Prime: https://en.wikipedia.org/wiki/Mersenne_prime
-* The list I used: https://www.math.utah.edu/~pa/math/mersenne.html#:~:text=p%20%3D%202%2C%203%2C%205,%2C%2024036583%2C%2025964951%2C%2030402457.
-
-***
+* The list I used: https://www.math.utah.edu/~pa/math/mersenne.html#:~:text=p%20%3D%202%2C%203%2C%205,%2C%2024036583%2C%2025964951%2C%2030402457
 
 ## Bon Appetit
 Wow, look at the size of that! There is just so much to eat!
@@ -228,9 +227,9 @@ This is obviously an RSA encryption with n being the modulus, e being the public
 
 The common methods for breaking RSA is using a factor database that stores factors or using somewhat efficient algorithms and heuristics in order to factor the modulus n, both won't work with an n as big as that, so we need to use less common attack, notice the public exponent e, it's very big, almost as big as the modulus itself, we often use very small exponent such as 3 and 65537 (there's even a variant of RSA which uses 2 as the public exponent) so a usage of large public exponent is most likely an indication that the private exponent d is small.
 
-For small private exponents there are 2 main attacks - Weiner's Attack and Boneh & Durfee's attack, the first attack is simpler and uses continued fraction to efficiently find d if d is smaller then modulus n to the power of 0.25, the later attack is much more complex relying on solving the small inverse problem efficiently to find d if d is smaller the modulus n to the power of 0.285 (or 0.292...the conclusions are inconclusive), after trying to use Weiner's attack and failing I succeeded in using Boneh & Durfee's attack.
+For small private exponents there are 2 main attacks - Weiner's Attack and Boneh & Durfee's attack, the first attack is simpler and uses continued fraction to efficiently find d if d is smaller than modulus n to the power of 0.25, the later attack is much more complex relying on solving the small inverse problem efficiently to find d if d is smaller the modulus n to the power of 0.285 (or 0.292...the conclusions are inconclusive), after trying to use Weiner's attack and failing I succeeded in using Boneh & Durfee's attack.
 
-Unfortunately I can't explain in details how this attack works because it requires a lot of preliminary knowledge but I'll add both the papers of Weiner and Boneh & Durfee about the attacks in the resources for those interested (I'll maybe add an explanation later on the small inverse problem and how it's connected), for this attack I used a sage script I found online, updated it to python 3 and changed the size of the lattice to 6 and the value of delta (the power of n) to 0.26 to guarantee that the key is found, the modified code is [linked here](assets//scripts//boneh_durfee.sage) if you want to try it yourself (link for an online sage interpreter is in the resources), by running this code we find the private key and using it to decrypt the ciphertext we get the flag:
+Unfortunately I can't explain in details how this attack works because it requires a lot of preliminary knowledge but I'll add both the papers of Weiner and Boneh & Durfee about the attacks in the resources for those interested (I'll maybe add an explanation later on the small inverse problem and how it's connected), for this attack I used a sage script I found online, updated it to python 3 and changed the size of the lattice to 6 and the value of delta (the power of n) to 0.26 to guarantee that the key is found, the modified code is [linked here](assets//scripts//buneh_durfee.sage) if you want to try it yourself (link for an online sage interpreter is in the resources), by running this code we find the private key and using it to decrypt the ciphertext we get the flag:
 
 ![](assets//images//bon_appetit_1.png)
 
@@ -241,8 +240,78 @@ Unfortunately I can't explain in details how this attack works because it requir
 * Web Sage interpreter: https://sagecell.sagemath.org/
 
 
+## A E S T H E T I C
+I can't stop hearing MACINTOSH PLUS...
 
+Connect here:\
+`nc jh2i.com 50009`
 
+**Post-CTF Writeup**\
+**`flag{aes_that_ick_ecb_mode_lolz}`**
+
+**Solution:** we are given a port on a server to connect to, when we connect we are prompted to give input:
+
+![](assets//images//aesthetic_1.png)
+
+btw if you don't see the image in the ASCII art maybe this will help:
+
+![](assets//images//aesthetic_2.png)
+
+By giving input to the server we get an hex string in return with the message that flag is sprinkled to the end:
+
+![](assets//images//aesthetic_3.png)
+
+After a bit of fuzzing I discovered that giving an empty input we receive an hex string of length 64, for input of length between the range of 1 to 32 we receive an hex string of size 128 and for input with length bigger than 32 we get an hex string of length bigger than 128:
+
+![](assets//images//aesthetic_4.png)
+
+furthermore by giving input with a length of 32 the second half of the hex string received is exactly the same as the hex string received when entering an empty input, this coupled with the reference to the block cipher AES in the challenge title led me to the conclusion that the server is encrypting using AES with Electronic Codebook (ECB) mode of operation our message appended to the flag and padded, as I explained in my writeup for Tyrannosaurus Rex modes of operation are use to allow block ciphers, which are limited by design to only specific lengths, to encrypt data of any length, this is done by splitting the data, encrypting it separately and then appending the resulting ciphertexts together, ECB mode of operation encrypt every block in isolation where other mode of operation performs more encryption between block so that block with the same plaintext won't have the same ciphertext, but ECB don't do that meaning that **ECB encrypts the same plaintext to the same ciphertext**, a schema of this mode:
+
+<div align=center>
+  <img src='assets//images//aesthetic_5.png' style="background-color:white;" >
+</div>
+
+so now that we know how the hex value is created we can use a nice attack that John Hammond showed in a [recent video](https://www.youtube.com/watch?v=f-iz_ZAS258).
+
+Because we know that input of length higher than 32 gives us an output with 64 more characters we can assume that the plaintext (our input appended to the flag) is split into blocks of 32 characters, so when our input is 32 characters long the first block in the ciphertext (first 64 characters in the ciphertext) is entirely our input and the second block in the ciphertext is the flag with the padding, and when our input is 31 characters long the first block in the ciphertext is our input with the first letter of the flag in the end.\
+so we can use a string of 31 characters and iterate over all the characters and check if the first block in the ciphertext when the input is our string appended to this (so the block is entirely our input) is equal to the first block of the ciphertext when the input is only our string (so the block is our input and the first character of the flag), after finding the first letter we can do the same for the second letter now using a string of 30 appended to the discovered first letter and so on for all the latter using the discovered start of the flag, more formally:
+
+![](assets//images//aesthetic_6.png)
+
+for this attack I wrote the following code which does basically the same as I described, building the flag character by character:
+
+```python
+from pwn import *
+import re
+from string import ascii_lowercase, digits
+
+s = remote('jh2i.com', 50009)
+s.recvuntil("> ")
+
+flag = ''
+
+for i in range(1,33):
+	s.sendline('a' * (32 - i))
+	base_block = re.findall('[a-f0-9]{64}', s.recvuntil("> ").decode('utf-8'))[0][:64]
+	for c in '_{}' + ascii_lowercase + digits:
+		s.sendline('a' * (32 - i) + flag + c)
+		block = re.findall('[a-f0-9]{128}', s.recvuntil("> ").decode('utf-8'))[0][:64]
+		if block == base_block:
+			flag = flag + c
+			print(flag)
+			break
+
+s.close()
+```
+and running this script gives us the flag:
+
+![](assets//images//aesthetic_7.png)
+
+**Resources:**
+* Block Cipher: https://en.wikipedia.org/wiki/Block_cipher
+* Block Cipher modes of operation and ECB: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
+
+***
 
 # Binary Exploitation
 
@@ -252,7 +321,7 @@ Unfortunately I can't explain in details how this attack works because it requir
 How many flap-jacks are on your stack?
 
 Connect with:\
-nc jh2i.com 50021
+`nc jh2i.com 50021`
 
 [pancakes](assets//executables//pancakes)
 
@@ -283,7 +352,7 @@ The value is `0x6161616161616174` or `aaaaaaat` in ASCII, we can lookup the posi
 ![](assets//images//pancakes_5.png)
 
 this function obviously prints the flag, so let's jump to it, so I wrote the following script in python using the pwn module, this script connects to the server or runs the executable, finds the address of the function secret_recipe and creates the matching payload so that the execution will return to this function after finishing with main,
-than the script sends the payload as input and print the flag received from the server/executable:
+then the script sends the payload as input and print the flag received from the server/executable:
 
 ```python
 from pwn import *
@@ -467,7 +536,7 @@ Let's first check if we have SQLi to begin with, using the search parameter in t
 
 ![](assets//images//waffle_land_3.png)
 
-Seems like we can use SQLi, now let's try to view the users table in order to sign in to the site, for that we need to add data from the users table to the output of the query, we can use union for that but it will only work if the number of attributes in the the product table and the number of attributes of the data added is the same, let's start with finding the number of attributes in the product table using `' order by n -- -`, adding this to the query will sort the data according to the n'th attribute, and if n is bigger then the number of attributes in this table the query will cause an error, doing so we can discover that the number of attributes in the product table (the table of waffles) is 5.
+Seems like we can use SQLi, now let's try to view the users table in order to sign in to the site, for that we need to add data from the users table to the output of the query, we can use union for that but it will only work if the number of attributes in the the product table and the number of attributes of the data added is the same, let's start with finding the number of attributes in the product table using `' order by n -- -`, adding this to the query will sort the data according to the n'th attribute, and if n is bigger than the number of attributes in this table the query will cause an error, doing so we can discover that the number of attributes in the product table (the table of waffles) is 5.
 
 With the number of attributes in mind we can try adding data, first we'll try using `' union select 1,2,3,4,5 -- -` this will add the row `1,2,3,4,5` to the output of the query, by doing so we get the following:
 
