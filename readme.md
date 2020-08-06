@@ -4,7 +4,7 @@
   <img width=500 src='assets//images//logo.gif'>
 </div>
 
-This is my writeup for the challenges in H@cktivityCon CTF 2020, I'll try adding as many challenges as I can during the next few days starting with the web challenges.
+This is my writeup for the challenges in H@cktivityCon CTF 2020, for more writeups of this CTF you can check out [this list](https://github.com/oxy-gendotmobi/ctf.hacktivitycon.2020.writeup.reference) or [CTFtime](https://ctftime.org/event/1101/tasks/)
 
 ***
 
@@ -37,7 +37,7 @@ Download the file below.\
 
 **`flag{tyrannosauras_xor_in_reverse}`**
 
-**Solution:** With the challenge we get a file named fossil, running the `file` command reveals that this file is actually a python script:
+**Solution:** With the challenge we get a file named fossil, running the `file` command reveals that this is actually a python script:
 
 ```python
 #!/usr/bin/env python
@@ -81,7 +81,7 @@ def encyption(flag):
 ```
 Much better, now that we can actually read the code let's see what it does, the function enc first encodes the string to base64, then iterates over each character and xors each one with the one after it (the last character is xorred with the first), the bytes received by xorring are placed in an array and the array is encoded to hex.
 
-We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse as the modules used for this parts have the reverse functions, but the second part is trickier.
+We can break it down to 3 parts: base64 encoding, cyclic xorring and hex encoding, the first and the last are easy to reverse as the packages used for this parts contain the reverse functions, but the second part is trickier.
 
 We can notice something interesting with the encryption in the second part, if we think of the first character as the initialization vector, then the encryption is similar to encryption with Cipher Block Chaining (CBC) mode of operation with no block cipher (the block cipher is an identity function) and a block size of one, Cipher Block Chaining or CBC is a block cipher mode of operation, modes of operation split the plaintext into blocks of a size manageable by a cipher (for example AES works with blocks of sizes 128, 192 and 256 bits) and append the resulting ciphertext blocks together, a schema of the operation of CBC:
 
@@ -92,9 +92,9 @@ We can notice something interesting with the encryption in the second part, if w
 
 So in our case because there is no block cipher so no key the only value needed for decryption is the initialization vector or in other words the only thing that we miss on order to encrypt the whole ciphertext is the first letter....so we can just bruteforce it!
 
-For those who didn't understand my reasoning, if we know the first character we can xor it with the first character of the ciphertext to get the second character in the plaintext (by the properties of xor for values a,b we get that a ^ b ^ b = a and the first character in the cipher text is the first character in the plaintext xorred with the second character in the plaintext), by using the second character we can get the third character doing the same operations and so on until we have decrypted all the ciphertext.
+For those who didn't understand my argument, let's say we know the first character, we can xor it with the first character of the ciphertext to get the second character in the plaintext (by the properties of xor for values a,b we get a ^ b ^ b = a and the first character in the cipher text is the first character in the plaintext xorred with the second character in the plaintext), by using the second character we can get the third character doing the same operations and so on until we have decrypted all the ciphertext.
 
-for that I wrote the following script which goes through all the character in base64 and for each one tries to decrypt the message as if it's the first character in the plaintext:
+For doing so I wrote the following script which goes through all the characters in base64 and for each one tries to decrypt the message as if it's the first character in the plaintext:
 
 ```python
 #!/usr/bin/env python
@@ -168,9 +168,9 @@ by the name of the file we can infer that the code purpose is to decrypt the cip
 ![](assets//images//perfect_1.gif)
 
 at this point it's somewhat stop printing characters but still runs.\
-This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger than the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger than zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to the function a itslef, looking at this a we see that for the argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.
+This challenge is quite similar to a challenge in nahamCon CTF called Homecooked (make sense as it's the same organizers), in it there was an inefficient primality check that made the code unreasonably slow, so we might be up against something like that, let's look at the code, it first prints the start of the flag format, then it decodes the ciphertext and splits in into an array of strings, then for each string it tries to find a value of n bigger than the one used previously that makes a return the Boolean value True (for the first string it just finds the first one bigger than zero that satisfy a) if the code discovered a matching n it then xors n with the string and prints the result, this part is coded somewhat efficient so let's move on to function a, for argument n the function goes through all the numbers smaller than n and checks for each one if it divides n, if so it adds it to a running total, in the end the function check if the sum is equal to n and return True if so otherwise it returns False.
 
-Basically a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some integer q, furthermore we still haven't discovered odd perfect numbers so all the perfect numbers known to us (and important to this challenge) are even perfect number, so I took a list of q's off the internet (the integers that make up Mersenne primes) and modified the code a bit so that instead of trying to find a perfect number it just uses the next Mersenne prime to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
+Basically a checks if the sum of the divisors of n is equal to n, numbers that satisfy this are often called perfect numbers and there are more efficient ways to find them, we have discovered that all even perfect numbers are of the form p * ( p + 1 ) / 2  where p is a Mersenne prime, which are primes of the form 2 ** q - 1 for some integer q, furthermore we still haven't discovered any odd perfect number so all the perfect numbers known to us (and important for this challenge) are even perfect number, so I took a list of q's off the internet (the integers that make up Mersenne primes) and modified the code a bit so that instead of trying to find a perfect number it just uses the next q on the list to create one (I also tried to find a formatted list of perfect numbers or of Mersenne primes themselves but didn't find any):
 
 ```python
 import base64
@@ -226,7 +226,7 @@ This is obviously an RSA encryption with n being the modulus, e being the public
 
 > ... RSA is a public key cipher, which means that there are two keys, one that is public which is used to encrypt data, and one that is private which is used to decrypt data, obviously there is some sort of connection between the keys but it is hard to reveal the private key from the public keys (and in this case vice versa), specifically in RSA in order to find the private key we need to solve the integer factorization problem, which is thought to be in NP/P (this is not important for the challenge), we will call our public key e and our private key d, they posses the following attribute - d multiply by e modulo the value of (p-1) * (q-1) which we will name from now phi, is equal to 1, we will call d the modular multiplicative inverse of e and e the modular multiplicative inverse of d, furthermore if we take a plaintext message pt and raise it to the power of d and then to the power of e modulo the value of p * q, which we will name n and will be commonly given to us instead of q and p, we will get pt again (to understand why it is needed to delve into modern algebra, if n is smaller than pt then obviously we will not get pt), now with that in mind we can talk about the cipher, encryption in this cipher is raising the plaintext pt to the power of the public key e mod the value of n, similarly, decryption is raising the ciphertext to the power of d mod n...
 
-The common methods for breaking RSA is using a factor database that stores factors or using somewhat efficient algorithms and heuristics in order to factor the modulus n, both won't work with an n as big as that, so we need to use less common attack, notice the public exponent e, it's very big, almost as big as the modulus itself, we often use very small exponent such as 3 and 65537 (there's even a variant of RSA which uses 2 as the public exponent) so a usage of large public exponent is most likely an indication that the private exponent d is small.
+The common methods for breaking RSA is using a factor database that stores factors or using somewhat efficient algorithms and heuristics in order to factor the modulus n if n is relatively small or easy to factor, both won't work with an n as big as that, so we need to use a less common attack. Notice the public exponent e, it's very big, almost as big as the modulus itself, we often use very small exponent such as 3 and 65537 (there's even a variant of RSA which uses 2 as the public exponent) so a usage of large public exponent is most likely an indication that the private exponent d is small.
 
 For small private exponents there are 2 main attacks - Weiner's Attack and Boneh & Durfee's attack, the first attack is simpler and uses continued fraction to efficiently find d if d is smaller than modulus n to the power of 0.25, the later attack is much more complex relying on solving the small inverse problem efficiently to find d if d is smaller the modulus n to the power of 0.285 (or 0.292...the conclusions are inconclusive), after trying to use Weiner's attack and failing I succeeded in using Boneh & Durfee's attack.
 
@@ -258,28 +258,29 @@ btw if you don't see the image in the ASCII art maybe this will help:
 
 ![](assets//images//aesthetic_2.png)
 
-By giving input to the server we get an hex string in return with the message that the flag is sprinkled to the end:
+By giving input to the server we get an hex string in return with the message that the flag is sprinkled at the end:
 
 ![](assets//images//aesthetic_3.png)
 
-After a bit of fuzzing I discovered that giving an empty input we receive an hex string of length 64, for input of length between the range of 1 to 32 we receive an hex string of size 128 and for input with length bigger than 32 we get an hex string of length bigger than 128:
+After a bit of fuzzing I discovered that for an empty input we receive an hex string with 64 characters, for input of length between the range of 1 to 32 we receive an hex string with length of 128 characters and for input with length bigger than 32 we get an hex string of length bigger than 128:
 
 ![](assets//images//aesthetic_4.png)
 
-furthermore by giving input with a length of 32 the second half of the hex string received is exactly the same as the hex string received when entering an empty input, this coupled with the reference to the block cipher AES in the challenge title led me to the conclusion that the server is using AES-ECB (AES with Electronic Codebook mode of operation) to encrypt our message appended to the flag and padded, as I explained in my writeup for Tyrannosaurus Rex modes of operation are used to allow block ciphers, which are limited by design to only specific lengths of plaintext, to encrypt information of any length, this is done by splitting the data into blocks, encrypting each block separately and then appending the resulting ciphertexts blocks together, ECB mode of operation encrypt every block in isolation where other modes of operation perform more encryptions between blocks so that blocks with the same plaintext won't have the same ciphertext, but ECB don't do that - **ECB encrypts the same plaintexts to the same ciphertexts**, a schema of this mode:
+furthermore by giving input with a length of 32 the second half of the hex string received is exactly the same as the hex string received when giving an empty input, this coupled with the reference to the block cipher AES in the challenge title led me to the conclusion that the server is using AES-ECB (AES with Electronic Codebook mode of operation) to encrypt our message appended to the flag and likely padded, as I explained in my writeup for Tyrannosaurus Rex modes of operation are used to allow block ciphers, which are limited by design to only specific lengths of plaintext, to encrypt information of any length, this is done by splitting the data into blocks, encrypting each block separately and then appending the resulting ciphertexts blocks together, ECB mode of operation encrypt every block in isolation where other modes of operation perform encryptions between blocks so that blocks with the same plaintext won't have the same ciphertext, but ECB don't do that meaning that **ECB encrypts the same plaintexts to the same ciphertexts**, a schema of this mode:
 
 <div align=center>
   <img src='assets//images//aesthetic_5.png' style="background-color:white;" >
 </div>
 
-so now that we know how the hex value is created we can use a nice attack that John Hammond showed in a [recent video](https://www.youtube.com/watch?v=f-iz_ZAS258).
+So now that we know how the hex value is created we can use a nice attack that John Hammond showed in a [recent video](https://www.youtube.com/watch?v=f-iz_ZAS258).
 
-Because we know that input of length higher than 32 gives us an output with 64 more characters we can assume that the plaintext (our input appended to the flag and padded) is split into blocks of 32 characters, so when our input is 32 characters long the first block in the ciphertext (first 64 characters in the ciphertext) is entirely our input and the second block in the ciphertext is the flag with the padding, and when our input is 31 characters long the first block in the ciphertext is our input with the first letter of the flag in the end.\
-so we can use a string of 31 characters and iterate over all the characters and check if the first block in the ciphertext when the input is our string appended to this (so the block is entirely our input) is equal to the first block of the ciphertext when the input is only our string (so the block is our input and the first character of the flag), after finding the first letter we can do the same for the second letter now using a string of 30 appended to the discovered first letter and so on for all the latter using the discovered start of the flag as the end of the string, more formally:
+Because we know that input of length higher than 32 gives us an output with 64 more characters than input with length of at most 32 we can deduce that the plaintext (our input appended to the flag and padded) is split into blocks of 32 characters, so when our input is 32 characters long the first block in the ciphertext (first 64 characters in the ciphertext) is entirely made out of our input and the second block in the ciphertext is the flag with the padding, and when our input is 31 characters long the first block in the ciphertext is our input with the first letter of the flag in the end.
+
+So we can choose a random string of 31 characters and iterate over all the characters and check if the first block in the ciphertext when the input is our string appended to this (so the block is entirely our input) is equal to the first block of the ciphertext when the input is only our string (so the block is our input and the first character of the flag), after finding the first letter we can do the same for the second letter using a string of 30 appended to the discovered letter and so on for all the letters using the start of the flag discovered so for as the end of the string, more formally:
 
 ![](assets//images//aesthetic_6.png)
 
-for this attack I wrote the following code which does basically the same as I described, building the flag character by character:
+if you still don't understand the attack you should check out the video I linked above and the first comment of the video. For the attack I wrote the following code which does basically the same as I described, building the flag character by character:
 
 ```python
 from pwn import *
@@ -425,7 +426,7 @@ if __name__ == "__main__":
     main()
 ```
 
-From the main function we can assume that this is the script running on the port we get, but it doesn't seems to be important so let's get rid of it and while we at it remote the ThreadedService class and the receive function as there is no use to it:
+From the main function we can assume that this is the script running on the port we get, but the function doesn't seems to be important so let's get rid of it and while we're at it remove the ThreadedService class and the receive function as there is no use for them:
 
 ```python
 #!/usr/bin/env python3
@@ -480,15 +481,17 @@ def send(string, newline=True):
 
 ```
 
-Our main function is handle, it start by asserting that the length of the flag modulo 16 is 1, so we now know that the length of the flag is 16 * k + 1 for some number k, then it invoke a function called shuffle, this function pads the flag to a length divided by 16, so the length after padding is 16 * (k + 1), notice that is uses the method pad from Crypto.Util.Padding, this method uses PKCS7 padding style by default which pads the length of the text to the end of it, so basically our flag is now padded with the number 16 * k + 1 to a length of 16 * (k + 1), afterwards the method splits the padded flag into blocks of size 16 and shuffles the blocks using random.shuffle, so overall after invoking shuffle we are an array of k + 1 blocks in a random order, where each block is a length 16 and a part of the flag padded with his length.
+Our most important function is handle, it start by asserting that the length of the flag modulo 16 is 1, so we now know that the length is 16 * k + 1 for some number k, then it invokes a function called shuffle, this function pads the flag to a length divided by 16, so the length after padding is 16 * (k + 1), notice that is uses the method pad from Crypto.Util.Padding, this method uses PKCS7 padding style by default which pads the length of the string to the end of it, so basically our flag is now padded with the number 16 * k + 1 for a total length of 16 * (k + 1), afterwards the method splits the padded flag into blocks of size 16 and shuffles the blocks using random.shuffle, so overall after invoking shuffle we are left with an array of k + 1 blocks in a random order, where each block is a length 16 and a part of the flag padded with his length.
 
-Afterwards, handle calls encrypt with the blocks as argument,  for each block the method encrypt well....encrypts iv using AES-ECB, xors it with the block and then append the result to an array, this type of encryption is actually AES-OFB or in other words AES in Output Feedback mode of operation (it seems the organizers really loves block cipher's modes of operation), so as I explained in the previous challenge modes of operation allows block cipher to encrypt data of any length by splitting the data into blocks and encrypting each one separately and in the end appending the ciphertext together, OFB is very interesting in that regard because the data itself is not encrypted by AES in any stage but the initialization vector or iv is, and then each encrypted block of iv is xorred with a block of the plaintext to create the ciphertext, because of this we can think of this mode of operation as a one time pad (OTP), this is because we can perform all the encryption of iv beforehand and only xor the whole plaintext with it while we need, and if you've know what is an OTP you probably can guess why this is bad, a schema of this mode:
+Afterwards, handle calls encrypt with the blocks as argument, for each block the method encrypt encrypts the variable iv using AES-ECB, it then xors it with the block and append the result to an array, this type of encryption is actually AES-OFB or in other words AES in Output Feedback mode of operation (it seems the organizers really love  modes of operation), so as I explained in the previous challenge and a one before it modes of operation allows block ciphers to encrypt data of any length by splitting the data into blocks and encrypting each one separately and in the end appending the ciphertexts together, OFB is very interesting in that regard because the data itself is not encrypted by the block cipher in any stage but the initialization vector (iv) is, and each encrypted block of iv is xorred with a block of the plaintext to create the ciphertext, because of this trait we can think of using this mode of operation as using a one time pad (OTP), this is because we can perform all the encryptions of iv beforehand and only xor the plaintext with it when we need to much like using OTP (OTP is even stronger because the key is totally random), if you've know what is an OTP you probably can guess why this is bad and what we can exploit, a schema of this mode:
 
-![](assets//images//obfuscated_3.png)
+<div align=center>
+  <img src='assets//images//obfuscated_3.png' style="background-color:white;" >
+</div>
 
-after encryption the ciphertext created is hexified and sent.
+after encryption the ciphertext created is hexified and sent to the user.
 
-So why this is bad? as I said this encryption is basically OTP where the key is the encrypted iv, it is unsafe to reuse keys with OTP encoding because if we one two ciphertext created by the same key c1 = m1 ^ k and c2 = m2 ^ k we can xor the ciphertext to get c1 ^ c2 = m1 ^ k ^ m2 ^ k = m1 ^ m2 and if furthermore by having a message and its encryption we can retrieve the key (this is called a known plaintext attack), but why is all this relevant to us? well, because we actually know what is the last block, but first let's find the length of plaintext, we can do that by just decoding the hex value with get from the server to bytes and counting the number of bytes, by doing so we find that the length of the plaintext is 48 meaning that 16 * ( k + 1 ) = 48 and k = 2, and so we now know that our flag has a length of 33 and the number of blocks in the encryption is 3, okay why we know the last block? simply because we know that it comprises of the last character of the flag, which is a curly brace `}`, and then padding using the number 33, and why this is bad? let's say we have a list of all the possible encryptions of the first block of ciphertext (there are exactly 3), let them be b1, b2 and b3, one of them is obviously an encryption of the block we know, let's say its b2, and all of them are encrypted by xorring the same value k, so if we xor every block with every other block and xor that we the block we know there must be 2 block of plaintext, that's because xorring b2 with its plaintext results with k, and xorring k with every other block will result with b1 and b3, so we've just discovered all the plaintext!
+So why this is bad? as I said this encryption is basically OTP where the key is the encrypted iv, it is unsafe to reuse keys with one time pad encryption because if we have two ciphertext created by the same key c1 = m1 ^ k and c2 = m2 ^ k we can xor the ciphertext to get c1 ^ c2 = m1 ^ k ^ m2 ^ k = m1 ^ m2, also by having a message and its encryption we can retrieve the key (this is called a known plaintext attack), but why is all this relevant to us? well, because we actually know the value of the last block in the plaintext, but first let's find the length of the plaintext, we can do that by just decoding the hex value we get from the server to bytes and counting the number of bytes, by doing so we find that the length of the plaintext is 48 bytes meaning that 16 * ( k + 1 ) = 48 and k = 2, and so we now know that our flag has a length of 33 and the number of blocks in the encryption is 3, why we know the value of the last block? simply because we know that it comprises of the last character of the flag, which is a closing curly brace `}`, and then a padding using the number 33, and why this is bad? let's say we have a list of all the possible values of the first block of ciphertext (there are exactly 3), let them be b1, b2 and b3, one of them is obviously an encryption of the block we know, let's say its b2, and all of them are encrypted by xorring the same value k, so if we xor every block with every other block and xor that with the plaintext block we know 2 out of the 3 resulting blocks will be the other plaintext blocks, that's because xorring b2 with its plaintext results with k, and xorring k with every other block will result with the plaintext of b1 and b3, so we've just discovered all the blocks in the plaintext!
 
 So I wrote the following code to perform the attack, the code reconnects to server until it has all the possible values of the first block, then it xors the values between themselves and between the known plaintext block and check if the result is a printable string (it's very unlikely we'll get a printable result which is not in the flag), if so it finds its position in the flag (using the flag format) and prints the result:
 
@@ -559,7 +562,7 @@ Connect with:\
 **Post-CTF Writeup**\
 **`flag{too_many_pancakes_on_the_stack}`**
 
-**Solution:** With the challenge we are given an executable and a port on a server running this executable, by running this executable we can see that it asks for how many pancakes we want and then prints us a nice ASCII art of pancakes:
+**Solution:** With the challenge we are given an executable and a port on a server running this executable, by running this executable we can see that it asks for how many pancakes we want and then by giving it input it prints us a nice ASCII art of pancakes:
 
 ![](assets//images//pancakes_1.png)
 
@@ -570,20 +573,20 @@ Okay now that we know what the executable does, let's see what we up against, us
 </div>
 
 
-The executable doesn't use canaries to protect from buffer overflows so might be able to overflow the return address of a function and cause a segfault, let's try doing that:
+The executable doesn't use canaries to protect from buffer overflows so we might be able to overflow the return address of a subroutine and cause a segfault, let's try doing that:
 
 ![](assets//images//pancakes_3.png)
 
-We got a segfault! if you've noticed to cause the segfault I used `cyclic`, cyclic is a tool from pwntools which create a string with a cyclic behavior, we can use this string in order to find the relative distance of important values on the stack from the start of the buffer, the command `cyclic -n 8 400` creates a cyclic string of length 400 with cyclic substrings of length 8, let's try that again but now while debugging with IDA, by placing a breakpoint at the retn command of the main function and looking at the value in the stack before the execution of the instruction we can get the relative distance from the return address:
+We got a segfault! if you've noticed to cause the segfault I used a tool called `cyclic`, cyclic is a tool from pwntools which creates a string with a cyclic behavior, we can use this string in order to find the relative distance of important values on the stack from the start of the input buffer, the command `cyclic -n 8 400` creates a cyclic string of length 400 with cyclical substrings of length 8, let's try that again but now while debugging with IDA, by placing a breakpoint at the retn command (return from a subroutine command) of the main subroutine and looking at the value in the stack before the execution of the instruction, which is the address we return to, we can get the relative distance from the return address:
 
 ![](assets//images//pancakes_4.png)
 
-The value is `0x6161616161616174` or `aaaaaaat` in ASCII, we can lookup the position of this substring using the command `cyclic -n 8 -o taaaaaaa` notice that I wrote the string in reverse, that is because data is written to the stack from right to left in IDA, by running this command we get an offset of 152 from the start of the buffer, and we have a way to jump to any point in the executable by overflowing the stack right until the return address and then modifying the address to the one we choose, looking at the symbols we can see a function named secret_recipe, this function reads a file named flag.txt and then prints it's content to the screen:
+The value is `0x6161616161616174` or `aaaaaaat` in ASCII (I think I messed up this picture so believe me that this is the value), we can lookup the position of this substring using the command `cyclic -n 8 -o taaaaaaa` notice that I wrote the string in reverse, that is because data is written to the stack from right to left in IDA, by running this command we get an offset of 152 from the start of the buffer, and we have a way to jump to any point in the executable by overflowing the stack right until the return address and then modifying the value of the return address to what we choose, looking at the symbols we can see a subroutine named secret_recipe, this subroutine reads a file named flag.txt and then prints its content to the screen using puts:
 
 ![](assets//images//pancakes_5.png)
 
-this function obviously prints the flag, so let's jump to it, so I wrote the following script in python using the pwn module, this script connects to the server or runs the executable, finds the address of the function secret_recipe and creates the matching payload so that the execution will return to this function after finishing with main,
-then the script sends the payload as input and print the flag received from the server/executable:
+this function obviously prints the flag, so let's jump to it, for that I wrote the following script in python using the pwn module (which is the module for pwntools), this script connects to the server, finds the address of the function secret_recipe and creates the matching payload so that the execution will return to this function after finishing with main,
+then the script sends the payload as input and print the flag received from the server:
 
 ```python
 from pwn import *
@@ -677,7 +680,7 @@ Let's first try to include the PHP file itself, this will create some kind of a 
 
 ![](assets//images//bite_2.png)
 
-index.php.php? it's seems that the PHP file includes a resource with a name matching the parameter given appended with .php, lets try `/index.php?page=index` :
+index.php.php? it seems that the PHP file includes a resource with a name matching the parameter given appended with .php, lets try `/index.php?page=index` :
 
 ![](assets//images//bite_3.png)
 
@@ -713,17 +716,17 @@ http://jh2i.com:50008
 
 ![](assets//images//gi_joe_1.png)
 
-By the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specification for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used to generate webpages dynamically, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.
+From the name of the challenge we can assume it has something to do with Common Gateway Interface or CGI (See GI), Common Gateway Interface are interface specifications for communication between a web server (which runs the website) and other programs on the server, this allows webserver to execute commands on the server (such as querying a database), and is mostly used for dynamic webpages, this type of communication is handled by CGI scripts which are often stored in a directory called `cgi-bin` in the root directory of the web server.
 
-Looking around in the website I couldn't find any interesting thing, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there is a vulnerability in this version of PHP which allows us to execute arbitrary code on the server, this vulnerability is often referred to by CVE-2012-1823 (or by CVE-2012-2311 because of later a discovery related to this vulnerability).
+Looking around on the website I couldn't find something interesting, but by looking at the headers of the server responses using the inspect tool I discovered that the website is using the outdated PHP version 5.4.1 and Apache version 2.4.25, this are quite old versions of both PHP (current version is 7.3) and Apache (current version is 2.4.43) so I googled `php 5.4.1 exploit cgi` and discovered this [site](https://www.zero-day.cz/database/337/), according to it there's a vulnerability in this version of PHP which let us execute arbitrary code on the server, this vulnerability is often referred to by CVE-2012-1823 (or by CVE-2012-2311 because of a later discovery related to this vulnerability).
 
-In more details when providing vulnerable website with a value with no parameter (lacks of the `=` symbol) the value is interpreted as options for the php-cgi program which handles communication with the web server related to PHP, the options are listed in the man page linked in the resources, so for example by using the -s flag we can output the source code for a PHP file and so by adding `/?-s` to the URI for a PHP file located on a vulnerable server we can view the source code of the file, let's try it on the index page which is a PHP file, by navigating to `/index.php?-s` we get:
+In more details when providing a vulnerable website with a value without specifying the parameter (lack of the `=` symbol) the value is somehow interpreted as options for a program on the server called php-cgi which handles communication with the web server related to PHP (the options for the program are listed in the man page linked below), so for example by using the `-s` flag on php-cgi we can output the source code of a PHP file and so by adding `/?-s` to the URI for a PHP file located on a vulnerable server we can view the source code of the file, let's try it on the index page which is a PHP file, by navigating to `/index.php?-s` we get:
 
 ![](assets//images//gi_joe_2.png)
 
-It worked! and we now know that the flag is in a file called flag.txt in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the -d option, this option give us the ability to change and define INI entries, or in other words change the configuration file of PHP, in order to run commands we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to allow usage of `php://input`, so by navigating to `/?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a PHP code to execute commands on the system `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.
+It worked! and we now know that the flag is in a file called flag.txt located in the root directory of the server, as I mentioned before this vulnerability allows us to execute commands on the server, this can be done by using the `-d` option, using it we can change or define INI entries, or in other words change the configuration file of PHP, in order to run commands we need to change the option `auto_prepend_file` to `php://input`, this will force PHP to parse the HTTP request and include the output in the response, also we need to change the option `allow_url_include` to `1` to enable the usage of `php://input`, so by navigating to `/?-d allow_url_include=1 -d auto_prepend_file=php://input` and adding to the HTTP request a PHP code which executes commands on the server `<?php system(<command>) ?>` we can achieve arbitrary code execution on the server.
 
-let's try doing that to view the flag, we can use cURL with the -i flag to include the HTTP headers and --data-binary flag to add the PHP code to the HTTP request, in the PHP code we'll use `cat /flag.txt` to output the content of the file, the command is:
+let's try doing that to view the flag, we can use `cURL` with the `-i` flag to include the HTTP response headers and `--data-binary` flag to add the PHP code to the HTTP request, in the PHP code we'll use `cat /flag.txt` to output the content of the file, the command is:
 
 `curl -i --data-binary "<?php system(\"cat /flag.txt \") ?>" "http://jh2i.com:50008/?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input"`
 
